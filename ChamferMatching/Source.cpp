@@ -19,7 +19,7 @@
 #include "Color.h"
 #include "Contour.h"
 #include "Detector.h"
-#include "chamfermatching.h"
+#include "ChamferMatcher.h"
 
 
 void read_template(std::string name, cv::Mat &temp){
@@ -34,41 +34,46 @@ void read_template(std::string name, cv::Mat &temp){
 		}
 	}
 }
-
+/*
 std::vector<cv::Point> bestMatching(cv::Mat &image, cv::Mat &temp){
 	std::vector<std::vector<cv::Point>> results;
 	std::vector<float> costs;
 
-	int best = cv::chamerMatching(image, temp, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
-	
+	int best = cv::orientationChamferMatching(image, temp, results, costs,30, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
+
+	if (best == -1)return std::vector<cv::Point>();
 	return results[best];
-}
+}*/
+
+
 
 int main(void){
 	cv::Mat image = cv::imread("12.jpg");
 	cv::Mat temp = cv::imread("N1.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 
-	cv::Mat iedge, iedge2;
+	cv::Mat iedge;
 	cv::Mat tedge;
-	cv::cvtColor(image, iedge2, CV_BGR2GRAY);
-	edgeDetection(iedge2, iedge2, true);
 	colorEdgeDetection(image, iedge, true);
 	edgeDetection(temp, tedge, false);
 
+	//rotate(tedge, tedge, -10);
+	cv::imshow("myedge", tedge);
 
-	cv::imshow("image", image);
-	cv::imshow("edge", iedge);
-	cv::imshow("edge2", iedge2);
-	cv::imshow("templ", temp);
 
-	std::vector<cv::Point> best = bestMatching(iedge, tedge);
+	//std::vector<cv::Point> best = bestMatching(iedge, tedge);
 
-	for (int i = 0; i < best.size(); i++){
-		image.at<cv::Vec3b>(best[i]) = cv::Vec3b(0, 255, 0);
-	}
+	//for (int i = 0; i < best.size(); i++){
+	//	image.at<cv::Vec3b>(best[i]) = cv::Vec3b(0, 255, 0);
+	//}
 
-	cv::imshow("result", image);
+	ending::Template t(tedge);
+	ending::ChamferMatcher cmatcher;
+
+	cv::Mat dis, ori;
+	
+
+	cv::imshow("result", ori);
 
 	cv::waitKey(0);
 	return 0;

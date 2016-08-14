@@ -944,7 +944,6 @@ void ChamferMatcher::Matching::addTemplateFromImage(Mat& templ, float scale)
 }
 
 void ChamferMatcher::Matching::addTemplate(Template& template_){
-    templates.clear();
     templates.push_back(&template_);
 }
 /**

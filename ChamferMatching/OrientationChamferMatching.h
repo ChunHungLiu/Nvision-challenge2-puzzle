@@ -24,23 +24,33 @@ namespace cv
 		double r;
 
 		coordinate_t operator*(coordinate_t &p){
-			coordinate_t a((double)p.first *a[0] + (double)p.second *a[1], (double)p.first *a[2] + (double)p.second *a[3]);
+			coordinate_t a((int)((double)p.first *a[0] + (double)p.second *a[1]),(int)( (double)p.first *a[2] + (double)p.second *a[3]));
 			return a;
 		}
 
-		void rotate(coordinate_t &c, orientation_t &o){
+		void rotate(cv::Point &center, coordinate_t &c, orientation_t &o){
+			c.first = c.first - center.x;
+			c.second = c.second - center.y;
+
 			c = (*this) * c;
-			o -= this->r;
-			if (o < 0.0)o += 2 * CV_PI;
+
+			c.first = c.first + center.x;
+			c.second = c.second + center.y;
+			o -= (float) this->r;
+			if (o < 0.0f)o += 2 * (float)CV_PI;
 		}
 
-		void rotate(coordinate_t &c){
+		void rotate(cv::Point &center, coordinate_t &c){
+			c.first = c.first - center.x;
+			c.second = c.second - center.y;
 			c = (*this) * c;
+			c.first = c.first + center.x;
+			c.second = c.second + center.y;
 		}
 
 		void rotate(orientation_t &o){
-			o -= this->r;
-			if (o < 0.0)o += 2 * CV_PI;
+			o -= (float)this->r;
+			if (o < 0.0f)o += 2 * (float)CV_PI;
 		}
 	};
 
@@ -56,8 +66,13 @@ namespace cv
 
 		void rotate(coordinate_t &c, orientation_t &o,int idx = 0){
 			c = rotation_matrix_s[idx] * c;
-			o -= rotation_matrix_s[idx].r;
-			if (o < 0.0)o += 2 * CV_PI;
+			o -= (float) rotation_matrix_s[idx].r;
+			if (o < 0.0f)o += 2 * (float)CV_PI;
+		}
+
+		Rotation &get(int idx){
+			if (idx < rotation_matrix_s.size())return rotation_matrix_s[idx];
+			else return rotation_matrix_s[rotation_matrix_s.size() - 1];
 		}
 
 		size_t size(){
@@ -191,7 +206,6 @@ namespace cv
 
 		public:
 			std::vector<Template*> scaled_templates;
-			std::vector<Template*> rotated_templates;
 			std::vector<int> addr;
 			int addr_width;
 			float scale;
@@ -207,27 +221,40 @@ namespace cv
 
 			}
 
+			Template(Template &t){
+				coords = t.coords;
+				orientations = t.orientations;
+				size = t.size;
+				center = t.center;
+				scale = t.scale;
+
+			}
+
 			Template(Mat& edge_image, float scale_ = 1);
+
 
 			~Template()
 			{
+				
 				for (size_t i = 0; i<scaled_templates.size(); ++i) {
-					if (this != scaled_templates[i]) delete scaled_templates[i];
+					std::cout << "scaled_templates: " << scaled_templates[i] << std::endl;
+					delete scaled_templates[i];
 				}
 				scaled_templates.clear();
 				coords.clear();
 				orientations.clear();
+				
 			}
 			void show() const;
 
 			void rotateTemplate(Rotation & rm){
 				if (coords.size() == orientations.size()){
 					for (int i = 0; i < coords.size(); i++){
-						rm.rotate(coords[i], orientations[i]);
+						rm.rotate(center, coords[i], orientations[i]);
 					}
 				} else{
 					for (int i = 0; i < coords.size(); i++){
-						rm.rotate(coords[i]);
+						rm.rotate(center, coords[i]);
 					}
 					for (int i = 0; i < orientations.size(); i++){
 						rm.rotate(orientations[i]);
@@ -283,10 +310,15 @@ namespace cv
 
 			~Matching()
 			{
+				std::cout << "in Matching Size: " << templates.size() << std::endl;
 				for (size_t i = 0; i<templates.size(); i++) {
 					std::cout << "in Matching: " << templates[i] << std::endl;
 					delete templates[i];
 				}
+			}
+
+			size_t size(){
+				return templates.size();
 			}
 
 			/**
@@ -303,6 +335,9 @@ namespace cv
 			ChamferMatcher::Matches* matchEdgeImage(Mat& edge_img, const ImageRange& range, float orientation_weight = 0.5, int max_matches = 20, float min_match_distance = 10.0);
 
 			void addTemplate(Template& template_);
+			void clearTemplate(){
+				templates.clear();
+			}
 
 		private:
 
@@ -1358,7 +1393,16 @@ namespace cv
 	}
 
 	const ChamferMatcher::Matches& ChamferMatcher::matching(Template& tpl, Mat& image_){
-		chamfer_->addTemplate(tpl);
+		chamfer_->clearTemplate();
+
+		for (int i = 0; i < rotation_matrixs_.size(); i++){
+			Template ttpl(tpl);
+			ttpl.rotateTemplate(rotation_matrixs_.get(i));
+			chamfer_->addTemplate(ttpl);
+		}
+		std::cout << chamfer_->size() << std::endl;
+		
+		
 
 		matches.clear();
 		matches.resize(max_matches_);
@@ -1410,8 +1454,8 @@ namespace cv
 			(float)orientationWeight, (float)truncate);
 
 		ChamferMatcher::Template template_(templ, (float)templScale);
+		
 		ChamferMatcher::Matches match_instances = matcher_.matching(template_, img);
-
 		size_t i, nmatches = match_instances.size();
 
 		results.resize(nmatches);
@@ -1443,7 +1487,6 @@ namespace cv
 				templPoints[j] = Point(x, y);
 			}
 		}
-
 		return bestIdx;
 	}
 

@@ -196,7 +196,7 @@ void colorEdgeDetection(cv::Mat &input, cv::Mat &output, bool b = true){
 	output = outputImage;
 }
 
-void rotate(cv::Mat &input, cv::Mat &output, double angle){
+void rotateWithBoundingBox(cv::Mat &input, cv::Mat &output, double angle){
 
 	// get rotation matrix for rotating the image around its center
 	cv::Point2f center(input.cols / 2.0f, input.rows / 2.0f);
@@ -208,4 +208,13 @@ void rotate(cv::Mat &input, cv::Mat &output, double angle){
 	rot.at<double>(1, 2) += bbox.height / 2.0 - center.y;
 
 	cv::warpAffine(input, output, rot, bbox.size());
+}
+
+void rotate(cv::Mat &input, cv::Mat &output, double angle){
+
+	// get rotation matrix for rotating the image around its center
+	cv::Point2f center(input.cols / 2.0f, input.rows / 2.0f);
+	cv::Mat rot = cv::getRotationMatrix2D(center, angle, 1.0);
+
+	cv::warpAffine(input, output, rot, input.size());
 }

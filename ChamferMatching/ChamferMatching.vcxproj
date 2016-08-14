@@ -146,6 +146,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ChamferMatcher.h" />
     <ClInclude Include="Color.h" />
     <ClInclude Include="Contour.h" />
     <ClInclude Include="Detector.h" />
