@@ -24,10 +24,10 @@
     <ClInclude Include="Detector.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
-    <ClInclude Include="OrientationChamferMatching.h">
+    <ClInclude Include="ChamferMatcher.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
-    <ClInclude Include="ChamferMatcher.h">
+    <ClInclude Include="opencvchamfermatching.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
   </ItemGroup>

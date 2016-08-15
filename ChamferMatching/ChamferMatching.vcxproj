@@ -150,7 +150,7 @@
     <ClInclude Include="Color.h" />
     <ClInclude Include="Contour.h" />
     <ClInclude Include="Detector.h" />
-    <ClInclude Include="OrientationChamferMatching.h" />
+    <ClInclude Include="opencvchamfermatching.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp" />

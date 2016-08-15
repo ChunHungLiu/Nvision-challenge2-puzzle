@@ -20,6 +20,7 @@
 #include "Contour.h"
 #include "Detector.h"
 #include "ChamferMatcher.h"
+#include "opencvchamfermatching.h"
 
 
 void read_template(std::string name, cv::Mat &temp){
@@ -67,13 +68,34 @@ int main(void){
 	//	image.at<cv::Vec3b>(best[i]) = cv::Vec3b(0, 255, 0);
 	//}
 
-	ending::Template t(tedge);
+	//ending::Template t(tedge);
 	ending::ChamferMatcher cmatcher;
+	std::vector<std::vector<cv::Point>> results;
+	std::vector<float> costs;
 
 	cv::Mat dis, ori;
+	cv::Mat ori2;
+
+
+	//cv::chamerMatching(iedge, tedge, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
+
+	ending::Template tm(tedge.clone());
+	tm.getCenter();
+
+
+	int best = cmatcher.matching(iedge, tedge, results, costs);
+	
+	if (best == -1){
+		std::cout << "No matching..." << std::endl;
+		return 0;
+	}
+
+	for (int i = 0; i < results[best].size(); i++){
+		image.at<cv::Vec3b>(results[best][i]) = cv::Vec3b(0, 255, 0);
+	}
 	
 
-	cv::imshow("result", ori);
+	cv::imshow("result", image);
 
 	cv::waitKey(0);
 	return 0;
