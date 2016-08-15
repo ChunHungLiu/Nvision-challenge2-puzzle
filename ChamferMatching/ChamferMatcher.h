@@ -27,6 +27,7 @@ namespace ending{
 		Mat22(double *n){
 			for (int i = 0; i < 4; i++)a[i] = n[i];
 		}
+
 		Mat22(double z, double x, double c, double v){
 			a[0] = z;
 			a[1] = x;
@@ -86,18 +87,11 @@ namespace ending{
 			return *this;
 		}
 
-		static std::vector<RotationMatrix> create(double angv){
-			std::vector<RotationMatrix> rt;
-			RotationMatrix r;
-
-			for (double i = 0; i < 360.0; i += angv){
-				r.angle = i*CV_PI / 180.0;
-				r.rm[0] = r.rm[3] = cos(r.angle);
-				r.rm[2] = sin(r.angle);
-				r.rm[1] = -r.rm[2];
-				rt.push_back(r);
-			}
-			return rt;
+		void create(double ang){
+			angle = ang*CV_PI / 180.0;
+			rm[0] = rm[3] = cos(angle);
+			rm[2] = sin(angle);
+			rm[1] = -rm[2];
 		}
 
 	};
@@ -111,7 +105,11 @@ namespace ending{
 
 		RotationMatrices(double angular_velocity_){
 			rotation_matrices_.clear();
-			rotation_matrices_ = RotationMatrix::create(angular_velocity_);
+			create(angular_velocity_);
+		}
+
+		RotationMatrices(const RotationMatrices &rm){
+			rotation_matrices_ = rm.rotation_matrices_;
 		}
 
 		RotationMatrix &get(int idx){
@@ -119,9 +117,13 @@ namespace ending{
 			else return rotation_matrices_[rotation_matrices_.size() - 1];
 		}
 
-		void create(double angv){
+		size_t create(double angv){
 			rotation_matrices_.clear();
-			rotation_matrices_ = RotationMatrix::create(angv);
+			for (double i = 0; i < 360.0; i += angv){
+				RotationMatrix r(i);
+				rotation_matrices_.push_back(r);
+			}
+			return rotation_matrices_.size();
 		}
 
 		void clear(){
@@ -138,35 +140,110 @@ namespace ending{
 	
 	class Template{
 	private:
+		std::vector<Template> scaled_templates;
 		std::vector<cv::Point> coords;
 		std::vector<Orient> orientations;
-		cv::Size imgSize;
-		cv::Size size_;
-		cv::Point center;
-		double scaled;
+		cv::Size imgSize; //original image size (scaled)
+		cv::Size size_;   //bounding box size (scaled)
+		cv::Point center;  //bounding box center
+		cv::Point moment;  //original image moment
+		double scale;
 	public:
 		Template(){}
 
-		Template(cv::Mat &templ){
-			scaled = 1;
+		Template(cv::Mat templ){
+			scale = 1.0;
 			create(templ);
 		}
 
+		
 		Template(const Template &t){
+			scaled_templates = t.scaled_templates;
 			coords = t.coords;
 			orientations = t.orientations;
 			size_ = t.size_;
 			imgSize = t.imgSize;
 			center = t.center;
-			scaled = t.scaled;
+			scale = t.scale;
+			moment = t.moment;
 		}
 
-		void resize(double scale){
-			for (int i = 0; i < coords.size(); i++){
-				coords[i].x = (int)(coords[i].x * (scale / scaled) + 0.5);
-				coords[i].y = (int)(coords[i].y * (scale / scaled) + 0.5);
+		//if scaled size doesn't exist then add a new one and return template&
+		Template &resize(double new_scale){
+			if (fabs(scale - new_scale)<1e-6) return *this;
+
+			for (size_t i = 0; i<scaled_templates.size(); ++i) {
+				if (fabs(scaled_templates[i].scale - new_scale)<1e-6) {
+					return scaled_templates[i];
+				}
 			}
-			scaled = scale;
+
+			double scale_factor = new_scale / scale;
+
+			Template tpl;
+			tpl.scale = new_scale;
+
+			tpl.center.x = (int)(center.x*scale_factor + 0.5);
+			tpl.center.y = (int)(center.y*scale_factor + 0.5);
+
+			tpl.moment.x = (int)(moment.x*scale_factor + 0.5);
+			tpl.moment.y = (int)(moment.y*scale_factor + 0.5);
+
+			tpl.size_.width = (int)(size_.width*scale_factor + 0.5);
+			tpl.size_.height = (int)(size_.height*scale_factor + 0.5);
+
+			tpl.imgSize.width = (int)(imgSize.width*scale_factor + 0.5);
+			tpl.imgSize.height = (int)(imgSize.height*scale_factor + 0.5);
+
+			tpl.coords.resize(coords.size());
+			tpl.orientations.resize(orientations.size());
+			for (size_t i = 0; i<coords.size(); ++i) {
+				tpl.coords[i].x = (int)(coords[i].x*scale_factor + 0.5);
+				tpl.coords[i].y = (int)(coords[i].y*scale_factor + 0.5);
+				tpl.orientations[i] = orientations[i];
+			}
+			scaled_templates.push_back(tpl);
+
+			return scaled_templates[scaled_templates.size()-1];
+		}
+
+		//copy this template (without scaled templates)
+		Template copy(){
+			Template t;
+			t.coords = coords;
+			t.orientations = orientations;
+			t.size_ = size_;
+			t.imgSize = imgSize;
+			t.center = center;
+			t.scale = scale;
+			t.moment = moment;
+			return t;
+		}
+
+		//clone this template (with scaled templates)
+		Template clone(){
+			return *this;
+		}
+
+		//output = CV_8UC3
+		void show(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
+			output = cv::Mat::zeros(imgSize, CV_8UC3);
+			for (int i = 0; i < coords.size(); i++){
+				output.at<cv::Vec3b>(coords[i].y + center.y, coords[i].x + center.x) = color;
+			}
+		}
+
+		//output = CV_8UC1
+		void show(cv::Mat &output, uchar color = 255){
+			output = cv::Mat::zeros(imgSize, CV_8UC1);
+			for (int i = 0; i<coords.size(); i++){
+				output.at<uchar>(coords[i].y + center.y, coords[i].x + center.x) = color;
+			}
+		}
+
+		//get specific template by index
+		Template &get(int idx){
+			return scaled_templates[idx];
 		}
 
 		//define center = (0,0)
@@ -174,36 +251,53 @@ namespace ending{
 			return coords;
 		}
 
-		//define [0, 2PI]
+		//image coordinates
+		std::vector<cv::Point> getPoints(){
+			std::vector<cv::Point> p;
+			for (int i = 0; i < coords.size(); i++){
+				p.push_back(cv::Point(coords[i].y + center.y, coords[i].x + center.x));
+			}
+			return p;
+		}
+
+		//get orientations of all points
 		std::vector<Orient> &getOrientations(){
 			return orientations;
 		}
 
-		cv::Size &size(){
+		//original image size
+		cv::Size &size(){   
 			return imgSize;
 		}
 
-		cv::Size &getSize(){
+		//bounding box size
+		cv::Size &getSize(){   
 			return size_;
 		}
 
+		//get center coordinate
 		cv::Point &getCenter(){
 			return center;
 		}
 
+		//initialize but no release memory
 		void clear(){
 			coords.clear();
 			orientations.clear();
+			scaled_templates.clear();
 			imgSize = cv::Size(0, 0);
 			size_ = cv::Size(0, 0);
 			center = cv::Point(0, 0);
 		}
 
+		//release memory
 		void release(){
 			std::vector<cv::Point>().swap(coords);
 			std::vector<Orient>().swap(orientations);
+			std::vector<Template>().swap(scaled_templates);
 		}
 
+		//create template
 		void create(cv::Mat &templ){   //OK
 			std::vector<cv::Point> local_coords;
 			std::vector<Orient> local_orientations;
@@ -427,8 +521,7 @@ namespace ending{
 	class Matcher{
 	private:
 
-		std::vector<Template> templates;
-
+		std::vector<Template> templates;   //rotated templ
 		double templScale_ = 1;
 		int maxMatches_ = 20;
 		double minMatchDistance_ = 1.0;
@@ -439,6 +532,228 @@ namespace ending{
 		double maxScale_ = 1.6;
 		double orientationWeight_ = 0.5;
 
+	public:
+		class SlidingWindow{
+		private:
+			bool has_next_ = true;
+			cv::Point cur_point_ = cv::Point(-1,-1);
+			double cur_scale_ = 0;
+
+			double scale_step_ = 0;
+			int scaled_time_ = 0;
+
+			cv::Point upper_bound_ = cv::Point(-1,-1);
+			cv::Point lower_bound_ = cv::Point(-1,-1);
+
+			int x_step_ = 3;
+			int y_step_ = 3;
+			int scales_ = 5;
+			double minScale_ = 0.6;
+			double maxScale_ = 1.6;
+
+		public:
+
+			SlidingWindow(){ has_next_ = false; }
+
+			SlidingWindow(const SlidingWindow &sw){
+				upper_bound_ = sw.upper_bound_;
+				lower_bound_ = sw.lower_bound_;
+				x_step_ = sw.x_step_;
+				y_step_ = sw.y_step_;
+				scales_ = sw.scales_;
+				minScale_ = sw.minScale_;
+				maxScale_ = sw.maxScale_;
+				cur_point_ = sw.cur_point_;
+
+				scaled_time_ = sw.scaled_time_;
+				cur_scale_ = sw.cur_scale_;
+				scale_step_ = sw.scale_step_;
+			}
+
+			//define  [lower_bound, upper_bound)
+			SlidingWindow(cv::Point lower_bound, cv::Point upper_bound, int x_step=3, int y_step=3, int scales=5, double minScale=0.6, double maxScale=1.6){
+				upper_bound_ = upper_bound;
+				lower_bound_ = lower_bound;
+				x_step_ = x_step;
+				y_step_ = y_step;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				cur_point_ = lower_bound_;
+
+				scaled_time_ = 0;
+				cur_scale_ = minScale;
+				scale_step_ = (maxScale - minScale) / scales;
+			}
+
+			//define   [0, imageSize)
+			SlidingWindow(cv::Size imageSize, int x_step = 3, int y_step = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6){
+				lower_bound_ = cv::Point(0, 0);
+				upper_bound_ = cv::Point(imageSize.width, imageSize.height);
+				x_step_ = x_step;
+				y_step_ = y_step;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				cur_point_ = lower_bound_;
+
+				scaled_time_ = 0;
+				cur_scale_ = minScale;
+				scale_step_ = (maxScale - minScale) / scales;
+			}
+
+			void set(cv::Point lower_bound, cv::Point upper_bound, int x_step = 3, int y_step = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6){
+				has_next_ = true;
+				upper_bound_ = upper_bound;
+				lower_bound_ = lower_bound;
+				x_step_ = x_step;
+				y_step_ = y_step;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				cur_point_ = lower_bound_;
+
+				scaled_time_ = 0;
+				cur_scale_ = minScale;
+				scale_step_ = (maxScale - minScale) / scales;
+			}
+
+			void set(cv::Size imageSize, int x_step = 3, int y_step = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6){
+				has_next_ = true;
+				lower_bound_ = cv::Point(0, 0);
+				upper_bound_ = cv::Point(imageSize.width, imageSize.height);
+				x_step_ = x_step;
+				y_step_ = y_step;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				cur_point_ = lower_bound_;
+
+				scaled_time_ = 0;
+				cur_scale_ = minScale;
+				scale_step_ = (maxScale - minScale) / scales;
+			}
+
+			bool hasNext(){
+				return has_next_;
+			}
+
+			//restart (init)
+			void re(){
+				cur_point_ = lower_bound_;
+				cur_scale_ = minScale_;
+				scaled_time_ = 0;
+			}
+
+			//sliding window return current point and window size
+			//if it does not have next then will return point(-1,-1) and hasNext will return false;
+			std::pair<cv::Point, double> next(){
+				std::pair<cv::Point, double> next_p = std::make_pair(cur_point_, cur_scale_);
+
+				cur_point_.x += x_step_;
+
+				if (cur_point_.x >= upper_bound_.x){
+					cur_point_.x = 0;
+					cur_point_.y += y_step_;
+
+					if (cur_point_.y >= upper_bound_.y){
+						cur_point_.y = 0;
+						cur_scale_ += scale_step_;
+						scaled_time_++;
+
+						if (scaled_time_ == scales_){
+							has_next_ = false;
+							scaled_time_ = 0;
+							cur_scale_ = minScale_;
+							cur_point_ = cv::Point(-1, -1);
+
+						}
+					}
+				}
+
+				return next_p;
+			}
+		};
+
+	public:
+		class MatchPoint{
+		private:
+			cv::Point point_;  //template center
+			double costs_;
+			Template tp;
+
+		public:
+			MatchPoint(){}
+
+			MatchPoint(Template &match_template, cv::Point point, double costs){
+				tp = match_template.copy();
+				point_ = point;
+				costs_ = costs;
+			}
+
+			MatchPoint(const MatchPoint &m){
+				point_ = m.point_;
+				tp = m.tp;
+			}
+
+			void set(Template &match_template, cv::Point point, double costs){
+				tp = match_template.copy();
+				point_ = point;
+				costs_ = costs;
+			}
+
+			cv::Point point(){
+				return point_;
+			}
+
+			double costs(){
+				return costs_;
+			}
+
+			Template &getTemplate(){
+				return tp;
+			}
+
+			//define center = (0,0)
+			std::vector<cv::Point> getMatchCoords(){
+				return tp.getCoords();
+			}
+
+			//image coodinate
+			std::vector<cv::Point> getMatchPoints(){
+				return tp.getPoints();
+			}
+
+			//output = CV_8UC3
+			void showMatch(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0,255,0)){
+				std::vector<cv::Point> p = tp.getPoints();
+				for (int i = 0; i < p.size(); i++){
+					output.at<cv::Vec3b>(p[i].x, p[i].y) = color;
+				}
+			}
+
+			//output = CV_8UC1
+			void showMatch(cv::Mat &output, uchar color = 255){
+				std::vector<cv::Point> p = tp.getPoints();
+				for (int i = 0; i < p.size(); i++){
+					output.at<uchar>(p[i].x, p[i].y) = 255;
+				}
+			}
+
+		};
+
+	private:
+		std::vector<MatchPoint> matchpoints;
+
+		SlidingWindow slidingwindow;
+		bool slidingwindowExists = false;
+
+		bool createSlidingWindow(cv::Point lower_bound, cv::Point upper_bound){
+
+			slidingwindow = SlidingWindow(lower_bound, upper_bound, padX_, padY_, scales_, minScale_, maxScale_);
+
+			return true;
+		}
 
 	public:
 		Matcher(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
@@ -477,6 +792,7 @@ namespace ending{
 
 		void release(){
 			std::vector<Template>().swap(templates);
+			std::vector<MatchPoint>().swap(matchpoints);
 		}
 
 		void setTemplate(cv::Mat &templ){
@@ -510,6 +826,37 @@ namespace ending{
 			for (int i = 0; i < t.size(); i++)templates.push_back(t[i]);
 			return n;
 		}
+
+		//if your dist_img size or your matching range is same as last time you matching then you can try redefine_range=false to promote your matching speed
+		void matching(cv::Mat &dist_img, cv::Mat &orientation_img, bool redefine_range = true){
+			cv::Size s = dist_img.size();
+			if (slidingwindowExists == false || redefine_range == true)slidingwindowExists = createSlidingWindow(cv::Point(0,0), cv::Point(s.width, s.height));
+		}
+
+		//if your dist_img size or your matching range is same as last time you matching then you can try redefine_range=false to promote your matching speed
+		void matching(cv::Mat &dist_img, cv::Mat &orientation_img, cv::Point lower_bound, cv::Point upper_bound, bool redefine_range = true){
+			if (slidingwindowExists == false || redefine_range == true)slidingwindowExists = createSlidingWindow(lower_bound, upper_bound);
+
+			for (int t_num = 0; t_num < templates.size(); t_num++){
+				while (slidingwindow.hasNext()){
+					std::pair<cv::Point, double> cur = slidingwindow.next();
+
+					cv::Point p = cur.first;
+					float s = cur.second;
+
+					Template &tp = templates[t_num].resize(s);
+
+					cv::Size tc = tp.getSize();
+					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 > upper_bound.x)continue;
+					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 > upper_bound.y)continue;
+
+					MatchPoint mp = localmatching(loc, dist_img,orientation_img);
+					if (mp.isMatch()){
+						matchpoints.push_back(mp);
+					}
+				}
+			}
+		}
 	};
 
 
@@ -526,6 +873,8 @@ namespace ending{
 	class ChamferMatcher{
 	private:
 		std::vector<Matcher> matchers;
+		cv::Mat distimg;
+		cv::Mat orientimg;
 
 		bool use_orientation_ = true;
 		double templScale_ = 1;
@@ -539,10 +888,13 @@ namespace ending{
 		double orientationWeight_ = 0.5;
 		double truncate_ = 20;
 
+		
+
 	public:
-		ChamferMatcher(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
+		ChamferMatcher(bool use_orientation = true, double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 			double orientationWeight = 0.5, double truncate = 20){
+			use_orientation_ = use_orientation;
 			templScale_ = templScale;
 			maxMatches_ = maxMatches;
 			minMatchDistance_ = minMatchDistance;
@@ -573,6 +925,8 @@ namespace ending{
 
 
 		int matching(cv::Mat& img, cv::Mat& templ,std::vector<std::vector<cv::Point> >& results, std::vector<float>& costs);
+		int matching(cv::Mat& dist_img, cv::Mat& orient_img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs);
+		int matching(std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs);
 		
 		void clear(){
 			matchers.clear();
@@ -580,6 +934,8 @@ namespace ending{
 
 		void release(){
 			std::vector<Matcher>().swap(matchers);
+			distimg.release();
+			orientimg.release();
 		}
 	};
 
@@ -763,8 +1119,6 @@ namespace ending{
 			edge_clone.release();
 			fillNonContourOrientations(annotated_img, orientation_img);
 		}
-
-		// TODO: Template matching
 	}
 
 	void ChamferMatcher::fillNonContourOrientations(cv::Mat& annotated_img, cv::Mat& orientation_img){
@@ -785,6 +1139,30 @@ namespace ending{
 			}
 		}
 	}
+
+
+	int ChamferMatcher::matching(cv::Mat& img, cv::Mat& templ, std::vector<std::vector<cv::Point> >& results, std::vector<float>& costs){
+		createMaps(img, distimg, orientimg);
+
+
+		//TODO: matching
+
+
+
+		distimg.release();
+		orientimg.release();
+	}
+
+	int ChamferMatcher::matching(cv::Mat& dist_img, cv::Mat& orient_img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs){
+
+	}
+
+	int ChamferMatcher::matching(std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs){
+
+	}
+
+
+
 
 
 
@@ -815,7 +1193,7 @@ namespace ending{
 		/************/
 		CV_Assert(img.type() == CV_8UC1 && templ.type() == CV_8UC1);
 
-		ChamferMatcher cm(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate);
+		ChamferMatcher cm(true, templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate);
 		cm.setMatcher(templ);
 
 
