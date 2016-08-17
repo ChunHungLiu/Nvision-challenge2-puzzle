@@ -20,79 +20,60 @@
 #include "Contour.h"
 #include "Detector.h"
 #include "ChamferMatcher.h"
-#include "opencvchamfermatching.h"
 
 
-void read_template(std::string name, cv::Mat &temp){
-	cv::Mat gray;
-	cv::cvtColor(temp, gray, CV_BGR2GRAY);
-	cv::Canny(gray, gray, 50, 100, 3);
-	Contour c(gray);
-	std::vector<std::vector<cv::Point>> p = c.getContours();
-	for (int i = 0; i < p.size(); i++){
-		for (int j = 0; j < p[i].size(); j++){
-
-		}
-	}
-}
-/*
-std::vector<cv::Point> bestMatching(cv::Mat &image, cv::Mat &temp){
-	std::vector<std::vector<cv::Point>> results;
-	std::vector<float> costs;
-
-	int best = cv::orientationChamferMatching(image, temp, results, costs,30, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
-
-	if (best == -1)return std::vector<cv::Point>();
-	return results[best];
-}*/
 
 
 
 int main(void){
 	cv::Mat image = cv::imread("12.jpg");
-	cv::Mat temp = cv::imread("N1.png", CV_LOAD_IMAGE_GRAYSCALE);
-
+	cv::Mat temp1 = cv::imread("F.png", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat temp2 = cv::imread("N1.png", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::resize(temp1, temp1, cv::Size(temp1.size().width / 2, temp1.size().height / 2));
 
 	cv::Mat iedge;
-	cv::Mat tedge;
+	cv::Mat tedge1;
+	cv::Mat tedge2;
 	colorEdgeDetection(image, iedge, true);
-	edgeDetection(temp, tedge, false);
+	edgeDetection(temp1, tedge1, false);
+	edgeDetection(temp2, tedge2, false);
 
 	//rotate(tedge, tedge, -10);
-	cv::imshow("myedge", tedge);
+	cv::imshow("temp edge1", tedge1);
+	cv::imshow("temp edge2", tedge2);
 
 
-	//std::vector<cv::Point> best = bestMatching(iedge, tedge);
-
-	//for (int i = 0; i < best.size(); i++){
-	//	image.at<cv::Vec3b>(best[i]) = cv::Vec3b(0, 255, 0);
-	//}
-
-	//ending::Template t(tedge);
 	ending::ChamferMatcher cmatcher;
-	std::vector<std::vector<cv::Point>> results;
-	std::vector<float> costs;
+	std::vector<std::vector<std::vector<cv::Point>>> results;
+	std::vector<std::vector<float>> costs;
 
 	cv::Mat dis, ori;
 	cv::Mat ori2;
 
+	cmatcher.addMatcher(tedge1);
+	cmatcher.addMatcher(tedge2);
 
 	//cv::chamerMatching(iedge, tedge, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
 
-	ending::Template tm(tedge.clone());
-	tm.getCenter();
 
 
-	int best = cmatcher.matching(iedge, tedge, results, costs);
+	std::vector<int> best = cmatcher.multimatching(iedge, results, costs);
+
+
+	for (int i = 0; i < best.size(); i++){
+		if (best[i] == -1){
+			std::cout << "No matching in matcher [" << i << "] ..." << std::endl;
+			continue;
+		}
+
+		for (int j = 0; j < results[i][best[i]].size(); j++){
+			image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 255, 0);
+		}
+	}
 	
-	if (best == -1){
-		std::cout << "No matching..." << std::endl;
-		return 0;
-	}
+	
 
-	for (int i = 0; i < results[best].size(); i++){
-		image.at<cv::Vec3b>(results[best][i]) = cv::Vec3b(0, 255, 0);
-	}
+	
 	
 
 	cv::imshow("result", image);
