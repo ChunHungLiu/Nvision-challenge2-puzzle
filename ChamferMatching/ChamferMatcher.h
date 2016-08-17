@@ -536,9 +536,96 @@ namespace ending{
 	/********* Matcher *********/
 
 	class Matcher{
+
+	public:
+		class MatcherConfig{
+			friend class Matcher;
+		private:
+			double templScale_ = 1;
+			int maxMatches_ = 20;
+			double minMatchDistance_ = 1.0;
+			int padX_ = 3;
+			int padY_ = 3;
+			int scales_ = 5;
+			double minScale_ = 0.6;
+			double maxScale_ = 1.6;
+			double orientationWeight_ = 0.5;
+			double truncate_ = 20;
+		public:
+			MatcherConfig(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
+				int padX = 3, int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
+				double orientationWeight = 0.5, double truncate = 20){
+				templScale_ = templScale;
+				maxMatches_ = maxMatches;
+				minMatchDistance_ = minMatchDistance;
+				padX_ = padX;
+				padY_ = padY;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				orientationWeight_ = orientationWeight;
+				truncate_ = truncate;
+			}
+
+			void set(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
+				int padX = 3, int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
+				double orientationWeight = 0.5, double truncate = 20){
+				templScale_ = templScale;
+				maxMatches_ = maxMatches;
+				minMatchDistance_ = minMatchDistance;
+				padX_ = padX;
+				padY_ = padY;
+				scales_ = scales;
+				minScale_ = minScale;
+				maxScale_ = maxScale;
+				orientationWeight_ = orientationWeight;
+				truncate_ = truncate;
+			}
+
+			void setTemplScale(double ts){
+				templScale_ = ts;
+			}
+
+			void setMaxMatches(int m){
+				maxMatches_ = m;
+			}
+
+			void setMinMatchDistance(double m){
+				minMatchDistance_ = m;
+			}
+
+			void setPadX(int p){
+				padX_ = p;
+			}
+
+			void setPadY(int p){
+				padY_ = p;
+			}
+
+			void setScales(int s){
+				scales_ = s;
+			}
+
+			void setMinScale(double s){
+				minScale_ = s;
+			}
+
+			void setMaxScale(double s){
+				maxScale_ = s;
+			}
+
+			void setOrientationWeight(double o){
+				orientationWeight_ = o;
+			}
+			void setTruncate(double t){
+				truncate_ = t;
+			}
+		};
 	private:
 
 		std::vector<Template> templates;   //rotated templ
+		MatcherConfig matcherconfig;
+
 		double templScale_ = 1;
 		int maxMatches_ = 20;
 		double minMatchDistance_ = 1.0;
@@ -552,6 +639,7 @@ namespace ending{
 
 	public:
 		class SlidingWindow{  //OK
+			friend class Matcher;
 		private:
 			bool has_next_ = true;
 			cv::Point cur_point_ = cv::Point(-1,-1);
@@ -694,6 +782,7 @@ namespace ending{
 
 	public:
 		class MatchPoint{
+			friend class Matcher;
 		private:
 			cv::Point point_;  //template center
 			double costs_;

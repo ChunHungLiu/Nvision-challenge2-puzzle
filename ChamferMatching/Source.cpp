@@ -15,6 +15,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <ctime>
 
 #include "Color.h"
 #include "Contour.h"
@@ -56,22 +57,25 @@ int main(void){
 	//cv::chamerMatching(iedge, tedge, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
 
 
-
+	double startTime, endTime;
+	startTime = (double)clock();
 	std::vector<int> best = cmatcher.multimatching(iedge, results, costs);
 
-
+	endTime = (double)clock();
 	for (int i = 0; i < best.size(); i++){
 		if (best[i] == -1){
 			std::cout << "No matching in matcher [" << i << "] ..." << std::endl;
 			continue;
 		}
 
+		std::cout << "Template " << i + 1 << " center: (" << results[i][best[i]][0].x << ", " << results[i][best[i]][0].y << ")" << std::endl;
 		for (int j = 0; j < results[i][best[i]].size(); j++){
-			image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 255, 0);
+			if (j == 0)image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 0, 255);
+			else image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 255, 0);
 		}
 	}
 	
-	
+	std::cout << "Take: " << (endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
 
 	
 	
