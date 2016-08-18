@@ -555,7 +555,6 @@ namespace ending{
 			double orientationWeight_ = 0.5;
 			double truncate_ = 20;
 
-
 		public:
 			MatcherConfig(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
 				int padX = 3, int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
@@ -570,6 +569,19 @@ namespace ending{
 				maxScale_ = maxScale;
 				orientationWeight_ = orientationWeight;
 				truncate_ = truncate;
+			}
+
+			MatcherConfig(const MatcherConfig &mc){
+				templScale_ = mc.templScale_;
+				maxMatches_ = mc.maxMatches_;
+				minMatchDistance_ = mc.minMatchDistance_;
+				padX_ = mc.padX_;
+				padY_ = mc.padY_;
+				scales_ = mc.scales_;
+				minScale_ = mc.minScale_;
+				maxScale_ = mc.maxScale_;
+				orientationWeight_ = mc.orientationWeight_;
+				truncate_ = mc.truncate_;
 			}
 
 			void set(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
@@ -630,17 +642,6 @@ namespace ending{
 
 		std::vector<Template> templates;   //rotated templ
 		MatcherConfig matcherconfig;
-
-		double templScale_ = 1;
-		int maxMatches_ = 20;
-		double minMatchDistance_ = 1.0;
-		int padX_ = 3;
-		int padY_ = 3;
-		int scales_ = 5;
-		double minScale_ = 0.6;
-		double maxScale_ = 1.6;
-		double orientationWeight_ = 0.5;
-		double truncate_ = 20;
 
 	public:
 		class SlidingWindow{  //OK
@@ -873,8 +874,8 @@ namespace ending{
 		bool slidingwindowExists = false;
 
 		bool createSlidingWindow(cv::Point lower_bound, cv::Point upper_bound){
-
-			slidingwindow = SlidingWindow(lower_bound, upper_bound, padX_, padY_, scales_, minScale_, maxScale_);
+			MatcherConfig &mc = matcherconfig;
+			slidingwindow = SlidingWindow(lower_bound, upper_bound, mc.padX_, mc.padY_, mc.scales_, mc.minScale_, mc.maxScale_);
 
 			return true;
 		}
@@ -884,32 +885,39 @@ namespace ending{
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 			double orientationWeight = 0.5, double truncate = 20){
 			
-			templScale_ = templScale;
-			maxMatches_ = maxMatches;
-			minMatchDistance_ = minMatchDistance;
-			padX_ = padX;
-			padY_ = padY;
-			scales_ = scales;
-			minScale_ = minScale;
-			maxScale_ = maxScale;
-			orientationWeight_ = orientationWeight;
-			truncate_ = truncate;
+			MatcherConfig &mc = matcherconfig;
+
+			mc.templScale_ = templScale;
+			mc.maxMatches_ = maxMatches;
+			mc.minMatchDistance_ = minMatchDistance;
+			mc.padX_ = padX;
+			mc.padY_ = padY;
+			mc.scales_ = scales;
+			mc.minScale_ = minScale;
+			mc.maxScale_ = maxScale;
+			mc.orientationWeight_ = orientationWeight;
+			mc.truncate_ = truncate;
+		}
+
+		Matcher(MatcherConfig &mc){
+			matcherconfig = mc;
 		}
 
 		void init(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 			double orientationWeight = 0.5, double truncate = 20){
 
-			templScale_ = templScale;
-			maxMatches_ = maxMatches;
-			minMatchDistance_ = minMatchDistance;
-			padX_ = padX;
-			padY_ = padY;
-			scales_ = scales;
-			minScale_ = minScale;
-			maxScale_ = maxScale;
-			orientationWeight_ = orientationWeight;
-			truncate_ = truncate;
+			MatcherConfig &mc = matcherconfig;
+			mc.templScale_ = templScale;
+			mc.maxMatches_ = maxMatches;
+			mc.minMatchDistance_ = minMatchDistance;
+			mc.padX_ = padX;
+			mc.padY_ = padY;
+			mc.scales_ = scales;
+			mc.minScale_ = minScale;
+			mc.maxScale_ = maxScale;
+			mc.orientationWeight_ = orientationWeight;
+			mc.truncate_ = truncate;
 		}
 
 		void clear(){
@@ -968,8 +976,10 @@ namespace ending{
 		public:
 
 		void filter(){
+			MatcherConfig &mc = matcherconfig;
+
 			std::vector<MatchPoint> matches;
-			matches.resize(maxMatches_);
+			matches.resize(mc.maxMatches_);
 
 			int match_count = 0;
 
@@ -978,13 +988,13 @@ namespace ending{
 			for (int i = 0; i < matchpoints.size(); i++){
 				int j = 0;
 				for (j = 0; j < match_count; j++){
-					if (std::abs(matchpoints[i].point().x - matches[j].point().x) + std::abs(matchpoints[i].point().y - matches[j].point().y) < minMatchDistance_)break;
+					if (std::abs(matchpoints[i].point().x - matches[j].point().x) + std::abs(matchpoints[i].point().y - matches[j].point().y) < mc.minMatchDistance_)break;
 				}
 				if (j >= match_count){
 					matches[match_count] = matchpoints[i];
 					match_count++;
 				}
-				if (match_count >= maxMatches_)break;
+				if (match_count >= mc.maxMatches_)break;
 			}
 
 			/*
@@ -1044,8 +1054,8 @@ namespace ending{
 		}
 
 		MatchPoint *localmatching(cv::Point &loc, Template &tp, cv::Mat &dist_img, cv::Mat &orient_img){
-
-			double alpha = orientationWeight_;
+			MatcherConfig &mc = matcherconfig;
+			double alpha = mc.orientationWeight_;
 			double beta = 1 - alpha;
 
 			double dist_cost = 0;
@@ -1064,7 +1074,7 @@ namespace ending{
 				}
 			}
 
-			double cost = (dist_cost / truncate_) / p.size();
+			double cost = (dist_cost / mc.truncate_) / p.size();
 
 			if (valid_orient > 0){
 				cost = (beta*cost + alpha*(orient_cost / (2 * CV_PI)) / valid_orient);
