@@ -114,13 +114,21 @@ HSVcolor BGR2HSV(cv::Vec3b color){
 }
 
 #define BLEND_MODE_OVERLAY 0
-#define BLEND_MODE_OVERLAY_WITH_COLOR 1
+#define BLEND_MODE_OVERLAY_GRAYSCALE 1
 
 uchar overlayBlending(uchar target, uchar blend){
 	double t = (double)target / 255.0;
 	double b = (double)blend / 255.0;
 	if (t < 0.5)return (uchar)(2 * t * b * 255.0);
 	else return (uchar)((1 - 2 * (1 - t)*(1 - b))*255.0);
+}
+
+uchar unOverlayBlending(uchar target, uchar unblend){
+	double c = (double)target / 255.0;
+	double t = (double)unblend / 255.0;
+
+	if (t < 0.5)return (uchar)(c/(2*t)*255.0);
+	else return (uchar)((1 - (1 - c) / (2 * (1 - t)))*255.0);
 }
 
 cv::Vec3b blending(cv::Vec3b target, cv::Vec3b blend, int mode=0){
@@ -146,5 +154,26 @@ cv::Vec3b blending(cv::Vec3b target, cv::Vec3b blend, int mode=0){
 		result[2] = overlayBlending(target[2], blend[2]);
 	}
 
+	return result;
+}
+
+cv::Vec3b separate(cv::Vec3b target, cv::Vec3b blend, int mode = 0){
+	cv::Vec3b result;
+	uchar gray;
+	switch (mode){
+	case 0:
+		result[0] = overlayBlending(target[0], blend[0]);
+		result[1] = overlayBlending(target[1], blend[1]);
+		result[2] = overlayBlending(target[2], blend[2]);
+		break;
+	case 1:
+		gray = (uchar)(0.299 * (double)target[2] + 0.587 * (double)target[1] + 0.114 * (double)target[0]);
+		result[0] = unOverlayBlending(target[0], gray);
+		result[1] = unOverlayBlending(target[1], gray);
+		result[2] = unOverlayBlending(target[2], gray);
+		break;
+	default:
+		break;
+	}
 	return result;
 }

@@ -5,6 +5,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#ifdef __MULTITHREAD_MATCHING__
+#include <thread>
+#endif
 
 #include <iostream>
 #include <algorithm>
@@ -551,6 +554,8 @@ namespace ending{
 			double maxScale_ = 1.6;
 			double orientationWeight_ = 0.5;
 			double truncate_ = 20;
+
+
 		public:
 			MatcherConfig(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
 				int padX = 3, int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
