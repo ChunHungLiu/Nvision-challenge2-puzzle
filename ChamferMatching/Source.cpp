@@ -8,6 +8,9 @@
 **                                                                 **
 *********************************************************************/
 
+
+#define __DEBUG_MODE___
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -16,21 +19,18 @@
 #include <vector>
 #include <string>
 #include <ctime>
+#include <cstdio>
 
 #include "Color.h"
 #include "Contour.h"
 #include "Detector.h"
 #include "ChamferMatcher.h"
 
-
-
-
-
 int main(void){
 	cv::Mat image = cv::imread("12.jpg");
 	cv::Mat temp1 = cv::imread("F.png", CV_LOAD_IMAGE_GRAYSCALE);
 	cv::Mat temp2 = cv::imread("N1.png", CV_LOAD_IMAGE_GRAYSCALE);
-	cv::resize(temp1, temp1, cv::Size(temp1.size().width / 2, temp1.size().height / 2));
+	cv::resize(temp1, temp1, cv::Size(temp1.size().width / 3, temp1.size().height / 3));
 
 	cv::Mat iedge;
 	cv::Mat tedge1;
@@ -42,15 +42,12 @@ int main(void){
 	//rotate(tedge, tedge, -10);
 	cv::imshow("temp edge1", tedge1);
 	cv::imshow("temp edge2", tedge2);
+	ending::debugimg = image.clone();
 
+	ending::ChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
 
-	ending::ChamferMatcher cmatcher;
-	std::vector<std::vector<std::vector<cv::Point>>> results;
-	std::vector<std::vector<float>> costs;
-
-	cv::Mat dis, ori;
-	cv::Mat ori2;
-
+	std::vector<ending::Matcher::MatchPoints> matchpoints;
+	
 	cmatcher.addMatcher(tedge1);
 	cmatcher.addMatcher(tedge2);
 
@@ -59,20 +56,18 @@ int main(void){
 
 	double startTime, endTime;
 	startTime = (double)clock();
-	std::vector<int> best = cmatcher.multimatching(iedge, results, costs);
+	cmatcher.multimatching(iedge, matchpoints);
 
 	endTime = (double)clock();
-	for (int i = 0; i < best.size(); i++){
-		if (best[i] == -1){
+	for (int i = 0; i < matchpoints.size(); i++){
+		if (matchpoints[i].size() <= 0){
 			std::cout << "No matching in matcher [" << i << "] ..." << std::endl;
 			continue;
 		}
-
-		std::cout << "Template " << i + 1 << " center: (" << results[i][best[i]][0].x << ", " << results[i][best[i]][0].y << ")" << std::endl;
-		for (int j = 0; j < results[i][best[i]].size(); j++){
-			if (j == 0)image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 0, 255);
-			else image.at<cv::Vec3b>(results[i][best[i]][j]) = cv::Vec3b(0, 255, 0);
-		}
+		ending::Matcher::MatchPoint &mp = matchpoints[i][0];
+		int max_ = (mp.getBoundingBoxSize().width > mp.getBoundingBoxSize().height ? mp.getBoundingBoxSize().width : mp.getBoundingBoxSize().height);
+		cv::circle(image, mp.getBoundingBoxCenter(), max_/2, cv::Scalar(0, 255, 0));
+		
 	}
 	
 	std::cout << "Take: " << (endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
@@ -80,7 +75,7 @@ int main(void){
 
 
 	cv::imshow("result2", image);
-
+	cv::imshow("asd", ending::debugimg);
 	cv::waitKey(0);
 	return 0;
 }

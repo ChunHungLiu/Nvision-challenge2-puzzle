@@ -21,6 +21,14 @@ namespace ending{
 	typedef double Orient;
 	typedef std::vector<Orient> Orient_s;
 
+	class Mat22;
+	class RotationMatrix;
+	class RotationMatrices;
+	class Matcher;
+	class ChamferMatcher;
+	class RotationInvariantChamferMatcher;
+
+
 
 	//************** Mat22 **************//   //OK
 	class Mat22{
@@ -43,7 +51,7 @@ namespace ending{
 		}
 
 		cv::Point operator*(cv::Point &p){
-			cv::Point n((int)(a[0] * p.x + a[1] * p.y + 0.5), (int)(a[2] * p.x + a[3] * p.y + 0.5));
+			cv::Point n((int)(a[0] * p.x + a[1] * p.y+0.5), (int)(a[2] * p.x + a[3] * p.y+0.5));
 			return n;
 		}
 
@@ -65,8 +73,8 @@ namespace ending{
 
 		RotationMatrix(double ang){
 			angle = ang*CV_PI / 180.0;
-			rm[0] = rm[3] = cos(angle);
-			rm[2] = sin(angle);
+			rm[0] = rm[3] = cos(-angle);
+			rm[2] = sin(-angle);
 			rm[1] = -rm[2];
 		}
 
@@ -74,11 +82,23 @@ namespace ending{
 			rm = r.rm;
 			angle = r.angle;
 		}
+		
+		double getAngle(){
+			return angle;
+		}
 
 		void rotate(cv::Point &p, Orient &o){
 			p = (*this) * p;
-			o -= angle;
-			if (o < 0.0)o += 2 * (float)CV_PI;
+			if (o >= -CV_PI){
+				o = o + angle;
+				while(o > CV_PI)o -= CV_PI;
+			}
+		}
+
+		void rotate(std::vector<cv::Point> &p, std::vector<Orient> &o){
+			for (int i = 0; i < p.size(); i++){
+				rotate(p[i], o[i]);
+			}
 		}
 
 		cv::Point operator*(cv::Point &p){
@@ -93,14 +113,14 @@ namespace ending{
 
 		void create(double ang){
 			angle = ang*CV_PI / 180.0;
-			rm[0] = rm[3] = cos(angle);
-			rm[2] = sin(angle);
+			rm[0] = rm[3] = cos(-angle);
+			rm[2] = sin(-angle);
 			rm[1] = -rm[2];
 		}
 
 	};
 
-	//************** RotationMatrices **************//    //OK (?)
+	//************** RotationMatrices **************//    //OK
 	class RotationMatrices{
 	private:
 		std::vector<RotationMatrix> rotation_matrices_;
@@ -118,7 +138,16 @@ namespace ending{
 
 		RotationMatrix &get(int idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
-			else return rotation_matrices_[rotation_matrices_.size() - 1];
+			else return rotation_matrices_.back();
+		}
+
+		RotationMatrix &operator[](int idx){
+			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
+			else return rotation_matrices_.back();
+		}
+
+		size_t size(){
+			return rotation_matrices_.size();
 		}
 
 		size_t create(double angv){
@@ -140,18 +169,19 @@ namespace ending{
 	};
 
 
-	/********* Template *********/   //OK
+	/********* Template *********/
 	
 	class Template{
 	private:
-		std::vector<Template> scaled_templates;
-		std::vector<cv::Point> coords;
-		std::vector<Orient> orientations;
+		std::vector<Template*> scaled_templates;
+		std::vector<cv::Point> coords;  //bounding box center = (0,0)
+		std::vector<Orient> orientations;  //define [0 ~ PI]
 		cv::Size imgSize; //original image size (scaled)
-		cv::Size size_;   //bounding box size (scaled)
+		cv::Size size_;  //bounding box size (scaled)
 		cv::Point center;  //bounding box center
 		cv::Point moment;  //original image moment
 		double scale;
+		double angle;
 	public:
 		Template(){}
 
@@ -172,19 +202,40 @@ namespace ending{
 			moment = t.moment;
 		}   //OK
 
+		~Template(){
+			for (int i = 0; i < scaled_templates.size(); i++){
+				delete scaled_templates[i];
+			}
+		}
+
+		void rotate(double radien){
+			RotationMatrix rm(radien);
+			rm.rotate(coords, orientations);
+			angle = rm.getAngle();
+			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			create(coords,orientations);
+		}
+
+		void rotate(RotationMatrix &rm){
+			rm.rotate(coords, orientations);
+			angle = rm.getAngle();
+			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			create(coords, orientations);
+		}
+
 		//if scaled size doesn't exist then add a new one and return template&
 		Template &resize(double new_scale){
-			if (fabs(scale - new_scale)<1e-6) return *this;
-
+			if (fabs(scale - new_scale)<1e-6) return (*this);
 			for (size_t i = 0; i<scaled_templates.size(); ++i) {
-				if (fabs(scaled_templates[i].scale - new_scale)<1e-6) {
-					return scaled_templates[i];
+				if (fabs(scaled_templates[i]->scale - new_scale)<1e-6) {
+					return *scaled_templates[i];
 				}
 			}
 
 			double scale_factor = new_scale / scale;
 
-			Template tpl;
+			Template *ntpl = new Template();
+			Template &tpl = *ntpl;
 			tpl.scale = new_scale;
 
 			tpl.center.x = (int)(center.x*scale_factor + 0.5);
@@ -200,15 +251,13 @@ namespace ending{
 			tpl.imgSize.height = (int)(imgSize.height*scale_factor + 0.5);
 
 			tpl.coords.resize(coords.size());
-			tpl.orientations.resize(orientations.size());
+			tpl.orientations = orientations;
 			for (size_t i = 0; i<coords.size(); ++i) {
-				tpl.coords[i].x = (int)(coords[i].x*scale_factor + 0.5);
-				tpl.coords[i].y = (int)(coords[i].y*scale_factor + 0.5);
-				tpl.orientations[i] = orientations[i];
+				cv::Point &p = coords[i];
+				tpl.coords[i] = cv::Point((int)(p.x*scale_factor + 0.5), (int)(p.y*scale_factor + 0.5));
 			}
-			scaled_templates.push_back(tpl);
-
-			return scaled_templates[scaled_templates.size()-1];
+			scaled_templates.push_back(&tpl);
+			return (*scaled_templates.back());
 		}
 
 		//copy this template (without scaled templates)
@@ -224,11 +273,6 @@ namespace ending{
 			return t;
 		}
 
-		//clone this template (with scaled templates)
-		Template clone(){
-			return *this;
-		}
-
 		//output = CV_8UC3
 		void show(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
 			output = cv::Mat::zeros(imgSize, CV_8UC3);
@@ -238,14 +282,23 @@ namespace ending{
 		}
 
 		//output = CV_8UC1
-		void show(cv::Mat &output, uchar color = 255){
+		void show(cv::Mat &output, uchar color){
 			output = cv::Mat::zeros(imgSize, CV_8UC1);
 			for (int i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + center.y, coords[i].x + center.x) = color;
 			}
 		}
 
-		void showboundingBox(cv::Mat &output, uchar color = 255){
+		//output = CV_8UC3
+		void showBoundingBox(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
+			output = cv::Mat::zeros(size_, CV_8UC3);
+			for (int i = 0; i<coords.size(); i++){
+				output.at < cv::Vec3b > (coords[i].y + size_.height / 2, coords[i].x + size_.width / 2) = color;
+			}
+		}
+
+		//output = CV_8UC1
+		void showBoundingBox(cv::Mat &output, uchar color){
 			output = cv::Mat::zeros(size_, CV_8UC1);
 			for (int i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + size_.height/2, coords[i].x + size_.width/2) = color;
@@ -254,7 +307,7 @@ namespace ending{
 
 		//get specific template by index
 		Template &get(int idx){
-			return scaled_templates[idx];
+			return *scaled_templates[idx];
 		}
 
 		//define center = (0,0)
@@ -262,11 +315,11 @@ namespace ending{
 			return coords;
 		}
 
-		//image coordinates
+		//template image local coordinates
 		std::vector<cv::Point> getPoints(){
 			std::vector<cv::Point> p;
 			for (int i = 0; i < coords.size(); i++){
-				p.push_back(cv::Point(coords[i].y + center.y, coords[i].x + center.x));
+				p.push_back(cv::Point(coords[i].x + center.x, coords[i].y + center.y));
 			}
 			return p;
 		}
@@ -286,11 +339,20 @@ namespace ending{
 			return size_;
 		}
 
+		double getRotatedAngle(){
+			return angle;
+		}
+
+		cv::Point &getMoment(){
+			return moment;
+		}
+
 		//get center coordinate
 		cv::Point &getCenter(){
 			return center;
 		}
 
+		//get scale size
 		double getScale(){
 			return scale;
 		}
@@ -310,7 +372,55 @@ namespace ending{
 		void release(){
 			std::vector<cv::Point>().swap(coords);
 			std::vector<Orient>().swap(orientations);
-			std::vector<Template>().swap(scaled_templates);
+
+			for (int i = 0; i < scaled_templates.size(); i++){
+				delete scaled_templates[i];
+			}
+			std::vector<Template*>().swap(scaled_templates);
+		}
+
+		//create template
+		void create(std::vector<cv::Point> points, std::vector<Orient> orients){
+			
+			cv::Point min(0,0), max(0,0);
+
+			moment = cv::Point(0, 0);
+			for (size_t i = 0; i<coords.size(); ++i) {
+				if (i == 0)min = max = coords[i];
+				moment.x += coords[i].x;
+				moment.y += coords[i].y;
+
+				if (min.x>coords[i].x) min.x = coords[i].x;
+				if (min.y>coords[i].y) min.y = coords[i].y;
+				if (max.x<coords[i].x) max.x = coords[i].x;
+				if (max.y<coords[i].y) max.y = coords[i].y;
+			}
+
+			size_.width = max.x - min.x;
+			size_.height = max.y - min.y;
+			int coords_size = (int)coords.size();
+
+			moment.x /= MAX(coords_size, 1);
+			moment.y /= MAX(coords_size, 1);
+
+			center.x = (max.x + min.x) / 2;   //bounding box center
+			center.y = (max.y + min.y) / 2;
+
+			for (int i = 0; i<coords_size; ++i) {
+				coords[i].x -= center.x;
+				coords[i].y -= center.y;
+			}
+
+			if (min.x < 0){
+				center.x -= min.x;
+				moment.x -= min.x;
+			}
+			if (min.y < 0){
+				center.y -= min.y;
+				moment.y -= min.y;
+			}
+
+			if (imgSize.width < size_.width || imgSize.height < size_.height)imgSize = size_;
 		}
 
 		//create template
@@ -535,6 +645,9 @@ namespace ending{
 	}
 
 
+#ifdef __DEBUG_MODE___
+	cv::Mat debugimg;
+#endif
 
 	/********* Matcher *********/
 
@@ -543,6 +656,8 @@ namespace ending{
 	public:
 		class MatcherConfig{
 			friend class Matcher;
+			friend class ChamferMatcher;
+			friend class RotationInvariantChamferMatcher;
 		private:
 			double templScale_ = 1;
 			int maxMatches_ = 20;
@@ -755,6 +870,7 @@ namespace ending{
 				cur_point_ = lower_bound_;
 				cur_scale_ = minScale_;
 				scaled_time_ = 0;
+				has_next_ = true;
 			}
 
 			//sliding window return current point and window size
@@ -787,88 +903,166 @@ namespace ending{
 		};
 
 	public:
-		class MatchPoint{
+		class Match{
 			friend class Matcher;
-		private:
+		protected:
 			cv::Point point_;  //template center
-			double costs_;
-			Template tp;
+			double cost_;
+			Template *tp;
 
 		public:
-			MatchPoint(){}
+			Match(){}
+			~Match(){}
 
-			MatchPoint(Template &match_template, cv::Point point, double costs){
-				tp = match_template.copy();
+			Match(Template &match_template, cv::Point point, double costs){
+				tp = &match_template;
 				point_ = point;
-				costs_ = costs;
+				cost_ = costs;
 			}
 
-			MatchPoint(const MatchPoint &m){
+			Match(const Match &m){
 				point_ = m.point_;
-				costs_ = m.costs_;
+				cost_ = m.cost_;
 				tp = m.tp;
 			}
 
 			void set(Template &match_template, cv::Point point, double costs){
-				tp = match_template.copy();
+				tp = &match_template;
 				point_ = point;
-				costs_ = costs;
+				cost_ = costs;
 			}
 
-			cv::Point point(){
+			cv::Point getPoint(){
 				return point_;
 			}
 
-			double costs(){
-				return costs_;
+			double getCost(){
+				return cost_;
 			}
 
 			void setCosts(double costs){
-				costs_ = costs;
+				cost_ = costs;
 			}
 
 			Template &getTemplate(){
-				return tp;
+				return (*tp);
 			}
 
 			//define center = (0,0)
 			std::vector<cv::Point> getMatchCoords(){
-				return tp.getCoords();
+				return tp->getCoords();
 			}
 
 			//image coodinate
 			std::vector<cv::Point> getMatchPoints(){
-				return tp.getPoints();
+				return tp->getPoints();
 			}
 
-			//output = CV_8UC3
+			//show match template position on the output image (output = CV_8UC3)
 			void showMatch(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0,255,0)){
-				std::vector<cv::Point> p = tp.getPoints();
+				std::vector<cv::Point> p = tp->getCoords();
 				for (int i = 0; i < p.size(); i++){
-					output.at<cv::Vec3b>(p[i].x, p[i].y) = color;
+					output.at<cv::Vec3b>(point_.y + p[i].y, point_.x + p[i].x) = color;
 				}
 			}
 
-			//output = CV_8UC1
+			//show match template position on the output image (output = CV_8UC1)
 			void showMatch(cv::Mat &output, uchar color = 255){
-				std::vector<cv::Point> p = tp.getPoints();
+				std::vector<cv::Point> p = tp->getPoints();
 				for (int i = 0; i < p.size(); i++){
-					output.at<uchar>(p[i].x, p[i].y) = 255;
+					output.at<uchar>(point_.y + p[i].y, point_.x + p[i].x) = 255;
 				}
-			}
-
-			MatchPoint copy(){
-				MatchPoint m;
-				m.point_ = point_;
-				m.costs_ = costs_;
-				m.tp = tp.copy();
-				return m;
 			}
 
 		};
 
+		class MatchPoint{
+		private:
+			cv::Point center_;  //original image center
+			cv::Point boundingBoxCenter_;  //boundingBox center
+			cv::Point moment_;
+			double angle_;  //rotated angle
+			double scaled_;  //template scales
+			double costs_;  //matching cost
+			cv::Size imgSize;  //original image size(scaled)
+			cv::Size size_;  //bounding box size
+		public:
+			MatchPoint(cv::Point center = cv::Point(0, 0), cv::Point boundingBoxCenter = cv::Point(0, 0), cv::Point moment = cv::Point(0, 0),
+				double angle = 0, double scaled = 1, double costs = 0,
+				cv::Size imgsize = cv::Size(0, 0), cv::Size boundingBoxSize = cv::Size(0, 0)){
+				center_ = center;
+				boundingBoxCenter_ = boundingBoxCenter;
+				angle_ = angle;
+				scaled_ = scaled;
+				costs_ = costs;
+				imgSize = imgsize;
+				size_ = boundingBoxSize;
+			}
+
+			MatchPoint(Match &mp){
+				Template &t = mp.getTemplate();
+				cv::Point localcenter = t.getCenter();
+
+				imgSize = t.size();
+				size_ = t.getSize();
+
+				boundingBoxCenter_ = mp.getPoint();
+				center_ = cv::Point(imgSize.width / 2 - localcenter.x + boundingBoxCenter_.x, imgSize.height / 2 - localcenter.y + boundingBoxCenter_.y);
+				moment_ = t.getMoment();
+
+				angle_ = t.getRotatedAngle();
+				scaled_ = t.getScale();
+				costs_ = mp.getCost();
+			}
+
+			MatchPoint(const MatchPoint &mp){
+				center_ = mp.center_;
+				boundingBoxCenter_ = mp.boundingBoxCenter_;
+				moment_ = mp.moment_;
+				angle_ = mp.angle_;
+				scaled_ = mp.scaled_;
+				costs_ = mp.costs_;
+				imgSize = mp.imgSize;
+				size_ = mp.size_;
+			}
+
+			cv::Point getCenter(){
+				return center_;
+			}
+			
+			cv::Point getBoundingBoxCenter(){
+				return boundingBoxCenter_;
+			}
+
+			cv::Point getMoment(){
+				return moment_;
+			}
+			
+			double getAngle(){
+				return angle_;
+			}
+
+			double getScale(){
+				return scaled_;
+			}
+
+			double getCost(){
+				return costs_;
+			}
+
+			cv::Size getImgSize(){
+				return imgSize;
+			}
+
+			cv::Size getBoundingBoxSize(){
+				return size_;
+			}
+		};
+
+		typedef std::vector<MatchPoint> MatchPoints;
+
 	private:
-		std::vector<MatchPoint> matchpoints;
+		MatchPoints matchpoints;
 
 		SlidingWindow slidingwindow;
 		bool slidingwindowExists = false;
@@ -903,7 +1097,7 @@ namespace ending{
 			matcherconfig = mc;
 		}
 
-		void init(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
+		void set(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 			double orientationWeight = 0.5, double truncate = 20){
 
@@ -926,7 +1120,7 @@ namespace ending{
 
 		void release(){
 			std::vector<Template>().swap(templates);
-			std::vector<MatchPoint>().swap(matchpoints);
+			MatchPoints().swap(matchpoints);
 		}
 
 		void setTemplate(cv::Mat &templ){
@@ -970,33 +1164,35 @@ namespace ending{
 		}
 
 		private:
-			static bool sortingFunction(MatchPoint &a, MatchPoint &b){
-				return a.costs() < b.costs();
+			static bool sortingFunction(Match &a, Match &b){
+				return a.getCost() < b.getCost();
 			}
 		public:
 
-		void filter(){
+		void filter(std::vector<Match> &matches){
 			MatcherConfig &mc = matcherconfig;
 
-			std::vector<MatchPoint> matches;
-			matches.resize(mc.maxMatches_);
+			std::vector<Match> matchps;
+			matchps.resize(mc.maxMatches_);
 
 			int match_count = 0;
 
-			std::sort(matchpoints.begin(), matchpoints.end(), ending::Matcher::sortingFunction);
+			std::sort(matches.begin(), matches.end(), ending::Matcher::sortingFunction);
 
-			for (int i = 0; i < matchpoints.size(); i++){
+
+			for (int i = 0; i < matches.size(); i++){
 				int j = 0;
+				cv::Point &pf = matches[i].getPoint();
 				for (j = 0; j < match_count; j++){
-					if (std::abs(matchpoints[i].point().x - matches[j].point().x) + std::abs(matchpoints[i].point().y - matches[j].point().y) < mc.minMatchDistance_)break;
+					cv::Point &pr = matchps[j].getPoint();
+					if (std::abs(pf.x - pr.x) + std::abs(pf.y - pr.y) < mc.minMatchDistance_)break;
 				}
 				if (j >= match_count){
-					matches[match_count] = matchpoints[i];
+					matchps[match_count] = matches[i];
 					match_count++;
 				}
 				if (match_count >= mc.maxMatches_)break;
 			}
-
 			/*
 
 			for (int i = 0; i < matchpoints.size(); i++){
@@ -1047,13 +1243,19 @@ namespace ending{
 
 			}  //for*/
 
-			matchpoints.resize(matches.size());
-			for (int i = 0; i < matches.size(); i++){
-				matchpoints[i] = matches[i].copy();
+#ifdef __DEBUG_MODE___
+			if (matchps.size() > 0){
+				matchps[0].showMatch(debugimg, cv::Vec3b(0, 0, 255));
+			}
+#endif
+
+			matchpoints.resize(matchps.size());
+			for (int i = 0; i < matchps.size(); i++){
+				matchpoints[i] = MatchPoint(matchps[i]);
 			}
 		}
 
-		MatchPoint *localmatching(cv::Point &loc, Template &tp, cv::Mat &dist_img, cv::Mat &orient_img){
+		Match *localmatching(cv::Point &loc, Template &tp, cv::Mat &dist_img, cv::Mat &orient_img){
 			MatcherConfig &mc = matcherconfig;
 			double alpha = mc.orientationWeight_;
 			double beta = 1 - alpha;
@@ -1083,7 +1285,7 @@ namespace ending{
 				std::cout << "error" << std::endl;
 			}
 			if (cost > 0){
-				MatchPoint *mp = new MatchPoint(tp, loc, cost);
+				Match *mp = new Match(tp, loc, cost);
 				return mp;
 			}
 
@@ -1095,7 +1297,11 @@ namespace ending{
 			cv::Size sz = dist_img.size();
 			if (slidingwindowExists == false || redefine_range == true)slidingwindowExists = createSlidingWindow(cv::Point(0,0), cv::Point(sz.width, sz.height));
 
+			std::vector<Match> matches;
+			matches.clear();
+
 			for (int t_num = 0; t_num < templates.size(); t_num++){
+				slidingwindow.re();
 				while (slidingwindow.hasNext()){
 					std::pair<cv::Point, double> cur = slidingwindow.next();
 
@@ -1108,17 +1314,16 @@ namespace ending{
 					if (p.x - tc.width / 2 < 0 || p.x + tc.width / 2 >= sz.width)continue;
 					if (p.y - tc.height / 2 < 0 || p.y + tc.height / 2 >= sz.height)continue;
 
-					std::vector<cv::Point> tt = tp.getCoords();
 
-					MatchPoint *mp = localmatching(p, tp, dist_img, orientation_img);
+					Match *mp = localmatching(p, tp, dist_img, orientation_img);
 					if (mp != NULL){
-						matchpoints.push_back((*mp));
+						matches.push_back((*mp));
 						delete mp;
 					}
 				}
 			}
 
-			filter();
+			filter(matches);
 
 			return matchpoints.size();
 		}
@@ -1127,7 +1332,10 @@ namespace ending{
 		size_t matching(cv::Mat &dist_img, cv::Mat &orientation_img, cv::Point lower_bound, cv::Point upper_bound, bool redefine_range = true){
 			if (slidingwindowExists == false || redefine_range == true)slidingwindowExists = createSlidingWindow(lower_bound, upper_bound);
 
+			std::vector<Match> matches;
+
 			for (int t_num = 0; t_num < templates.size(); t_num++){
+				slidingwindow.re();
 				while (slidingwindow.hasNext()){
 					std::pair<cv::Point, double> cur = slidingwindow.next();
 
@@ -1140,21 +1348,22 @@ namespace ending{
 					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 > upper_bound.x)continue;
 					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 > upper_bound.y)continue;
 
-					MatchPoint *mp = localmatching(p, tp, dist_img,orientation_img);
+					Match *mp = localmatching(p, tp, dist_img,orientation_img);
 					if (mp != NULL){
-						matchpoints.push_back(*mp);
+						matches.push_back(*mp);
 						delete mp;
 					}
 				}
+				
 			}
-
-			filter();
+			
+			filter(matches);
 
 			return matchpoints.size();
 		}
 	};
 
-
+	
 	
 
 
@@ -1166,42 +1375,22 @@ namespace ending{
 
 
 	class ChamferMatcher{
-	private:
+	protected:
 		std::vector<Matcher> matchers;
 		cv::Mat distimg;
 		cv::Mat orientimg;
 
-		bool use_orientation_ = true;
-		double templScale_ = 1;
-		int maxMatches_ = 20;
-		double minMatchDistance_ = 1.0;
-		int padX_ = 3;
-		int padY_ = 3;
-		int scales_ = 5;
-		double minScale_ = 0.6;
-		double maxScale_ = 1.6;
-		double orientationWeight_ = 0.5;
-		double truncate_ = 20;
-
-		bool matcherExist = false;
+		Matcher::MatcherConfig matcherconfig;
 
 		
 
 	public:
-		ChamferMatcher(bool use_orientation = true, double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
+
+		ChamferMatcher(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
-			double orientationWeight = 0.5, double truncate = 20){
-			use_orientation_ = use_orientation;
-			templScale_ = templScale;
-			maxMatches_ = maxMatches;
-			minMatchDistance_ = minMatchDistance;
-			padX_ = padX;
-			padY_ = padY;
-			scales_ = scales;
-			minScale_ = minScale;
-			maxScale_ = maxScale;
-			orientationWeight_ = orientationWeight;
-			truncate_ = truncate;
+			double orientationWeight = 0.5, double truncate = 20)
+			: matcherconfig(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate){
+			matchers.clear();
 		}
 
 		void setMatcher(Matcher &m);   //OK
@@ -1214,6 +1403,10 @@ namespace ending{
 		size_t addMatchers(std::vector<Matcher> &m);  //OK
 		size_t addMatchers(std::vector<cv::Mat> &templ);  //OK
 
+		void clearMatchers(){
+			std::vector<Matcher>().swap(matchers);
+		}
+
 	public:
 
 		void createDistanceTransform(cv::Mat& edges_img, cv::Mat& dist_img, cv::Mat& annotate_img, float truncate_dt, float a = 1.0, float b = 1.5);  //OK
@@ -1222,63 +1415,53 @@ namespace ending{
 		void createMaps(cv::Mat& edge_img, cv::Mat &dis_img, cv::Mat &ont_img);  //OK
 		void fillNonContourOrientations(cv::Mat& annotated_img, cv::Mat& orientation_img);  //OK
 
-		int matching(cv::Mat& img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher = true);
-		int matching(cv::Mat& dist_img, cv::Mat& orient_img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher = true);
-		int matching(std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs);
-
-		std::vector<int> multimatching(cv::Mat& img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs);
-		std::vector<int> multimatching(cv::Mat& dist_img, cv::Mat& orient_img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs);
-		std::vector<int> multimatching(std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs);
+		void matching(cv::Mat &img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher = true);
+		void matching(cv::Mat &dist_img, cv::Mat &orient_img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher = true);
+		void matching(Matcher::MatchPoints &matchpoints);
+		
+		void multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints);
+		void multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints);
+		void multimatching(std::vector<Matcher::MatchPoints> &matchpoints);
+		
 		
 		void clear(){
 			matchers.clear();
-			matcherExist = false;
 		}  //OK
 
 		void release(){
 			std::vector<Matcher>().swap(matchers);
 			distimg.release();
 			orientimg.release();
-			matcherExist = false;
 		}  //OK
 	};
 
 	void ChamferMatcher::setMatcher(Matcher &m){
 		matchers.clear();
 		matchers.push_back(m);
-		matcherExist = true;
 	}  //OK
 
 	void ChamferMatcher::setMatcher(cv::Mat &templ){
-		Matcher m(templScale_, maxMatches_, minMatchDistance_, padX_,
-			padY_, scales_, minScale_, maxScale_,
-			orientationWeight_);
+		Matcher m(matcherconfig);
 		m.setTemplate(templ);
 		matchers.clear();
 		matchers.push_back(m);
-		matcherExist = true;
 	}  //OK
 
 	size_t ChamferMatcher::addMatcher(Matcher &m){
 		matchers.push_back(m);
-		matcherExist = true;
 		return matchers.size() - 1;
 	}  //OK
 
 	size_t ChamferMatcher::addMatcher(cv::Mat &templ){
-		Matcher m(templScale_, maxMatches_, minMatchDistance_, padX_,
-			padY_, scales_, minScale_, maxScale_,
-			orientationWeight_);
+		Matcher m(matcherconfig);
 		m.setTemplate(templ);
 		matchers.push_back(m);
-		matcherExist = true;
 		return matchers.size() - 1;
 	}  //OK
 
 	void ChamferMatcher::setMatchers(std::vector<Matcher> &m){
 		matchers.clear();
 		matchers = m;
-		matcherExist = true;
 	}  //OK
 
 	void ChamferMatcher::setMatchers(std::vector<cv::Mat> &templ){
@@ -1286,7 +1469,6 @@ namespace ending{
 		for (int i = 1; i < templ.size(); i++){
 			addMatcher(templ[i]);
 		}
-		matcherExist = true;
 	}  //OK
 
 	size_t ChamferMatcher::addMatchers(std::vector<Matcher> &m){
@@ -1294,7 +1476,6 @@ namespace ending{
 		for (int i = 0; i < m.size(); i++){
 			matchers.push_back(m[0]);
 		}
-		matcherExist = true;
 		return t;
 	}  //OK
 
@@ -1303,7 +1484,6 @@ namespace ending{
 		for (int i = 0; i < templ.size(); i++){
 			addMatcher(templ[i]);
 		}
-		matcherExist = true;
 		return t;
 	}  //OK
 
@@ -1414,23 +1594,21 @@ namespace ending{
 		CV_Assert(edge_img.channels() == 1);
 
 		cv::Mat annotated_img;
+		Matcher::MatcherConfig &mc = matcherconfig;
 
 		annotated_img.create(edge_img.size(), CV_32SC2);
 		dist_img.create(edge_img.size(), CV_32FC1);
 		dist_img.setTo(0);
 		// Computing distance transform
-		createDistanceTransform(edge_img, dist_img, annotated_img, (float)truncate_);
+		createDistanceTransform(edge_img, dist_img, annotated_img, (float)mc.truncate_);
 
 
-		//orientation_img = NULL;
-		if (use_orientation_) {
-			orientation_img.create(edge_img.size(), CV_32FC1);
-			orientation_img.setTo(0);
-			cv::Mat edge_clone = edge_img.clone();
-			createEdgeOrientationMap(edge_clone, orientation_img);
-			edge_clone.release();
-			fillNonContourOrientations(annotated_img, orientation_img);
-		}
+		orientation_img.create(edge_img.size(), CV_32FC1);
+		orientation_img.setTo(0);
+		cv::Mat edge_clone = edge_img.clone();
+		createEdgeOrientationMap(edge_clone, orientation_img);
+		edge_clone.release();
+		fillNonContourOrientations(annotated_img, orientation_img);
 	}  //OK
 
 	void ChamferMatcher::fillNonContourOrientations(cv::Mat& annotated_img, cv::Mat& orientation_img){
@@ -1452,14 +1630,128 @@ namespace ending{
 		}
 	}  //OK
 
+
+	void ChamferMatcher::matching(cv::Mat &img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher){
+		matchpoints.clear();
+		createMaps(img.clone(), distimg, orientimg);
+
+		Matcher *m;
+		bool releaseMatcher = false;
+		if (rebuild_matcher == true || matchers.size() <= 0){
+			m = new Matcher(matcherconfig);
+			releaseMatcher = true;
+		}
+		else{
+			m = &matchers[0];
+		}
+		m->setTemplate(templ);
+		int num = (int)m->matching(distimg, orientimg);
+
+		
+		matchpoints = m->getMatchPoints();
+
+		if (releaseMatcher){
+			delete m;
+		}
+	}
+
+	void ChamferMatcher::matching(cv::Mat &dist_img, cv::Mat &orient_img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher){
+		matchpoints.clear();
+
+		distimg = dist_img;
+		orientimg = orient_img;
+
+		Matcher *m;
+		bool releaseMatcher = false;
+		if (rebuild_matcher == true || matchers.size() <= 0){
+			m = new Matcher(matcherconfig);
+			releaseMatcher = true;
+		}
+		else{
+			m = &matchers[0];
+		}
+		m->setTemplate(templ);
+		int num = (int)m->matching(distimg, orientimg);
+
+		
+		matchpoints = m->getMatchPoints();
+
+		if (releaseMatcher){
+			delete m;
+		}
+	}
+
+	void ChamferMatcher::matching(Matcher::MatchPoints &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			std::cout << "No matcher found..." << std::endl;
+		}
+
+		Matcher *m = &matchers[0];
+		int num = (int)m->matching(distimg, orientimg);
+
+		
+		matchpoints = m->getMatchPoints();
+	}
+
+	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			std::cout << "No matcher found..." << std::endl;
+		}
+
+		createMaps(img, distimg, orientimg);
+		
+
+		for (int i = 0; i < matchers.size(); i++){
+			Matcher *m = &matchers[i];
+			int num = (int)m->matching(distimg, orientimg);
+			
+			matchpoints.push_back(m->getMatchPoints());
+		}
+
+	}
+
+	void ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			std::cout << "No matcher found..." << std::endl;
+		}
+
+		distimg = dist_img;
+		orientimg = orient_img;
+
+		for (int i = 0; i < matchers.size(); i++){
+			Matcher *m = &matchers[i];
+			int num = (int)m->matching(distimg, orientimg);
+
+			matchpoints.push_back(m->getMatchPoints());
+		}
+	}
+
+	void ChamferMatcher::multimatching(std::vector<Matcher::MatchPoints> &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			std::cout << "No matcher found..." << std::endl;
+		}
+
+		for (int i = 0; i < matchers.size(); i++){
+			Matcher *m = &matchers[i];
+			int num = (int)m->matching(distimg, orientimg);
+
+			matchpoints.push_back(m->getMatchPoints());
+		}
+	}
+
+	/*
 	//add template
-	int ChamferMatcher::matching(cv::Mat& img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher){
+	void ChamferMatcher::matching(cv::Mat& img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher){
 		createMaps(img.clone(), distimg, orientimg);
 
 		Matcher *m;
 		bool releaseMatcher = false;
 		if (matcherExist == false || rebuild_matcher == true || matchers.size() <= 0){
-			m = new Matcher(templScale_, maxMatches_, minMatchDistance_, padX_, padY_, scales_, minScale_, maxScale_, orientationWeight_, truncate_);
+			m = new Matcher(matcherconfig);
 			releaseMatcher = true;
 		}
 		else{
@@ -1472,21 +1764,12 @@ namespace ending{
 		results.resize(num);
 		costs.resize(num);
 
-		int bestIdx = -1;
-		double minCost = DBL_MAX;
-
 		std::vector<Matcher::MatchPoint> &matches = m->getMatchPoints();
 
 		for (int i = 0; i < num; i++)
 		{
 			Matcher::MatchPoint& match = matches[i];
-			double cval = match.costs();
-			if (cval < minCost)
-			{
-				minCost = cval;
-				bestIdx = (int)i;
-			}
-			costs[i] = (float)cval;
+			costs[i] = (float)match.getCost();
 
 			std::vector<cv::Point> coords = match.getTemplate().getCoords();
 			cv::Point off = match.point();
@@ -1509,11 +1792,9 @@ namespace ending{
 		if (releaseMatcher){
 			delete m;
 		}
-
-		return bestIdx;
 	}
 
-	int ChamferMatcher::matching(cv::Mat& dist_img, cv::Mat& orient_img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher){
+	void ChamferMatcher::matching(cv::Mat& dist_img, cv::Mat& orient_img, cv::Mat& templ, std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs, bool rebuild_matcher){
 		distimg = dist_img.clone();
 		orientimg = orient_img.clone();
 
@@ -1521,7 +1802,7 @@ namespace ending{
 		bool releaseMatcher = false;
 
 		if (matcherExist == false || rebuild_matcher == true || matchers.size() <= 0){
-			m = new Matcher(templScale_, maxMatches_, minMatchDistance_, padX_, padY_, scales_, minScale_, maxScale_, orientationWeight_, truncate_);
+			m = new Matcher(matcherconfig);
 			releaseMatcher = true;
 		}
 		else{
@@ -1534,20 +1815,12 @@ namespace ending{
 		results.resize(num);
 		costs.resize(num);
 
-		int bestIdx = -1;
-		double minCost = DBL_MAX;
-
 		std::vector<Matcher::MatchPoint> &matches = m->getMatchPoints();
 
 		for (int i = 0; i < num; i++)
 		{
 			Matcher::MatchPoint& match = matches[i];
 			double cval = match.costs();
-			if (cval < minCost)
-			{
-				minCost = cval;
-				bestIdx = (int)i;
-			}
 			costs[i] = (float)cval;
 
 			std::vector<cv::Point> coords = match.getTemplate().getCoords();
@@ -1571,14 +1844,15 @@ namespace ending{
 			delete m;
 		}
 
-		return bestIdx;
 	}
 
-	int ChamferMatcher::matching(std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs){
+	void ChamferMatcher::matching(std::vector<std::vector<cv::Point>>& results, std::vector<float>& costs){
 		
+		results.clear();
+		costs.clear();
 		if (matchers.size() <= 0){
 			std::cout << "No matcher found..." << std::endl;
-			return -1;
+			return ;
 		}
 
 		Matcher *m = &matchers[0];
@@ -1589,20 +1863,12 @@ namespace ending{
 		results.resize(num);
 		costs.resize(num);
 
-		int bestIdx = -1;
-		double minCost = DBL_MAX;
-
 		std::vector<Matcher::MatchPoint> &matches = m->getMatchPoints();
 
 		for (int i = 0; i < num; i++)
 		{
 			Matcher::MatchPoint& match = matches[i];
 			double cval = match.costs();
-			if (cval < minCost)
-			{
-				minCost = cval;
-				bestIdx = (int)i;
-			}
 			costs[i] = (float)cval;
 
 			std::vector<cv::Point> coords = match.getTemplate().getCoords();
@@ -1621,21 +1887,16 @@ namespace ending{
 
 		distimg.release();
 		orientimg.release();
+	}*/
 
-		return bestIdx;
-	}
-
-
-	std::vector<int> ChamferMatcher::multimatching(cv::Mat& img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
+/*
+	void ChamferMatcher::multimatching(cv::Mat& img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
 		createMaps(img.clone(), distimg, orientimg);
 
-		std::vector<int> bestIdx(matchers.size(), -1);
 		results.resize(matchers.size());
 		costs.resize(matchers.size());
 
 		for (int i = 0; i < matchers.size(); i++){
-			int best = -1;
-			double minCost = DBL_MAX;
 
 			int num = (int)matchers[i].matching(distimg, orientimg);
 
@@ -1647,11 +1908,6 @@ namespace ending{
 			for (int j = 0; j < num; j++){
 				Matcher::MatchPoint& match = matches[j];
 				double cval = match.costs();
-				if (cval < minCost)
-				{
-					minCost = cval;
-					best = (int)j;
-				}
 				costs[i][j] = (float)cval;
 
 				std::vector<cv::Point> coords = match.getTemplate().getCoords();
@@ -1668,20 +1924,16 @@ namespace ending{
 				results[i][j] = coords;
 			}
 
-			bestIdx[i] = best;
 		}
 
 		distimg.release();
 		orientimg.release();
-
-		return bestIdx;
 	}
 
-	std::vector<int> ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat& orient_img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
+	void ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat& orient_img, std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
 		distimg = dist_img;
 		orientimg = orient_img;
 
-		std::vector<int> bestIdx(matchers.size(), -1);
 		results.resize(matchers.size());
 		costs.resize(matchers.size());
 
@@ -1720,17 +1972,14 @@ namespace ending{
 				results[i][j] = coords;
 			}
 
-			bestIdx[i] = best;
 		}
 
 		distimg.release();
 		orientimg.release();
 
-		return bestIdx;
 	}
 
-	std::vector<int> ChamferMatcher::multimatching(std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
-		std::vector<int> bestIdx(matchers.size(), -1);
+	void ChamferMatcher::multimatching(std::vector<std::vector<std::vector<cv::Point>>>& results, std::vector<std::vector<float>>& costs){
 		results.resize(matchers.size());
 		costs.resize(matchers.size());
 
@@ -1768,53 +2017,98 @@ namespace ending{
 
 				results[i][j] = coords;
 			}
-
-			bestIdx[i] = best;
 		}
 
 		distimg.release();
 		orientimg.release();
 
-		return bestIdx;
 	}
 
+	*/
 
 
 
 
-
-
-
+	
 	/********* RotationInvariantChamferMatcher *********/
 
 	class RotationInvariantChamferMatcher : public ChamferMatcher{
 	private:
 		RotationMatrices rotation_matrices_;
 	public:
-		RotationInvariantChamferMatcher(){
+		
+		class MatchPoint : public Matcher::MatchPoint{
+		private:
+			Orient orientation;
+		public:
+		};
+
+		typedef std::vector<RotationInvariantChamferMatcher::MatchPoint> MatchPoints;
+
+		RotationInvariantChamferMatcher(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
+			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
+			double orientationWeight = 0.5, double truncate = 20, double angularVelocity = 30.0) : rotation_matrices_(angularVelocity),
+			ChamferMatcher(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate){
 
 		}
+		void setMatcher(cv::Mat &templ);
+		size_t addMatcher(cv::Mat &templ);
 
 		void clear(){
-			
+			ChamferMatcher::clear();
+			rotation_matrices_.clear();
+		}
+
+		void release(){
+			ChamferMatcher::release();
+			rotation_matrices_.release();
 		}
 	};
 
+	typedef RotationInvariantChamferMatcher RChamferMatcher;
+
+	void RChamferMatcher::setMatcher(cv::Mat &templ){
+		Matcher m(matcherconfig);
+		Template t(templ);
+		
+
+		for (int i = 0; i < rotation_matrices_.size(); i++){
+			t.rotate(rotation_matrices_[i]);
+			m.addTemplate(t);
+		}
+
+		matchers.clear();
+		matchers.push_back(m);
+	}
+
+	size_t RChamferMatcher::addMatcher(cv::Mat &templ){
+		Matcher m(matcherconfig);
+		Template t(templ);
 
 
-	int chamferMatching(cv::Mat& img, cv::Mat& templ,
-		std::vector<std::vector<cv::Point> >& results, std::vector<float>& costs,
+		for (int i = 0; i < rotation_matrices_.size(); i++){
+			t.rotate(rotation_matrices_[i]);
+			m.addTemplate(t);
+		}
+		matchers.push_back(m);
+		return matchers.size() - 1;
+	}
+
+
+	void chamferMatching(cv::Mat& img, cv::Mat& templ,Matcher::MatchPoints &matchpoints,
 		double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 		int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 		double orientationWeight = 0.5, double truncate = 20){
 		/************/
 		CV_Assert(img.type() == CV_8UC1 && templ.type() == CV_8UC1);
 
-		ChamferMatcher cm(true, templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate);
-		cm.setMatcher(templ);
+		matchpoints.clear();
 
+		ChamferMatcher cmatcher(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate);
+		cmatcher.setMatcher(templ);
 
-		return 0;
+		cmatcher.matching(img, templ, matchpoints);
+
 	}
 
 }
