@@ -187,6 +187,7 @@ namespace ending{
 
 		Template(cv::Mat templ){
 			scale = 1.0;
+			angle = 0;
 			create(templ);
 		}   //OK
 
@@ -200,6 +201,7 @@ namespace ending{
 			center = t.center;
 			scale = t.scale;
 			moment = t.moment;
+			angle = t.angle;
 		}   //OK
 
 		~Template(){
@@ -211,14 +213,14 @@ namespace ending{
 		void rotate(double radien){
 			RotationMatrix rm(radien);
 			rm.rotate(coords, orientations);
-			angle = rm.getAngle();
+			angle += rm.getAngle();
 			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
 			create(coords,orientations);
 		}
 
 		void rotate(RotationMatrix &rm){
 			rm.rotate(coords, orientations);
-			angle = rm.getAngle();
+			angle += rm.getAngle();
 			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
 			create(coords, orientations);
 		}
@@ -237,6 +239,7 @@ namespace ending{
 			Template *ntpl = new Template();
 			Template &tpl = *ntpl;
 			tpl.scale = new_scale;
+			tpl.angle = angle;
 
 			tpl.center.x = (int)(center.x*scale_factor + 0.5);
 			tpl.center.y = (int)(center.y*scale_factor + 0.5);
@@ -269,6 +272,7 @@ namespace ending{
 			t.imgSize = imgSize;
 			t.center = center;
 			t.scale = scale;
+			t.angle = angle;
 			t.moment = moment;
 			return t;
 		}
@@ -293,7 +297,7 @@ namespace ending{
 		void showBoundingBox(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
 			output = cv::Mat::zeros(size_, CV_8UC3);
 			for (int i = 0; i<coords.size(); i++){
-				output.at < cv::Vec3b > (coords[i].y + size_.height / 2, coords[i].x + size_.width / 2) = color;
+				output.at < cv::Vec3b > (coords[i].y + (size_.height+1)/2, coords[i].x + (size_.width+1)/2) = color;
 			}
 		}
 
@@ -301,7 +305,7 @@ namespace ending{
 		void showBoundingBox(cv::Mat &output, uchar color){
 			output = cv::Mat::zeros(size_, CV_8UC1);
 			for (int i = 0; i<coords.size(); i++){
-				output.at<uchar>(coords[i].y + size_.height/2, coords[i].x + size_.width/2) = color;
+				output.at<uchar>(coords[i].y + (size_.height + 1) / 2, coords[i].x + (size_.width + 1) / 2) = color;
 			}
 		}
 
@@ -1702,6 +1706,14 @@ namespace ending{
 
 		createMaps(img, distimg, orientimg);
 		
+#ifdef __DEBUG_MODE___
+		cv::Mat d = distimg.clone();
+		cv::normalize(d, d, 1, 0, CV_MINMAX);
+		cv::imshow("distimg", d);
+		cv::Mat o = orientimg.clone();
+		cv::normalize(o, o, 1, 0, CV_MINMAX);
+		cv::imshow("orientimg", o);
+#endif
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
@@ -2085,10 +2097,11 @@ namespace ending{
 		Matcher m(matcherconfig);
 		Template t(templ);
 
-
+		
 		for (int i = 0; i < rotation_matrices_.size(); i++){
-			t.rotate(rotation_matrices_[i]);
-			m.addTemplate(t);
+			Template tp(t);
+			tp.rotate(rotation_matrices_[i]);
+			m.addTemplate(tp);
 		}
 		matchers.push_back(m);
 		return matchers.size() - 1;
