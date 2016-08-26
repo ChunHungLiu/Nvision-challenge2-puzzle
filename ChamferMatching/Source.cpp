@@ -74,7 +74,7 @@ int main(void){
 	std::cout << "Take: " << (endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
 
 
-
+    cv::imwrite("result2.png", image);
 	//cv::imshow("result2", image);
 	//cv::imshow("asd", ending::debugimg);
 	cv::waitKey(0);
