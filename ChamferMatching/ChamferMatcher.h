@@ -98,7 +98,7 @@ namespace ending{
 			angle = r.angle;
 		}
 		
-		double getAngle(){
+		double getAngle() const{
 			return angle;
 		}
 
@@ -951,11 +951,11 @@ namespace ending{
 				cost_ = costs;
 			}
 
-			cv::Point getPoint(){
+			cv::Point getPoint() const{
 				return point_;
 			}
 
-			double getCost(){
+			double getCost() const{
 				return cost_;
 			}
 
@@ -963,17 +963,17 @@ namespace ending{
 				cost_ = costs;
 			}
 
-			Template &getTemplate(){
+			Template &getTemplate() const{
 				return (*tp);
 			}
 
 			//define center = (0,0)
-			std::vector<cv::Point> getMatchCoords(){
+			std::vector<cv::Point> getMatchCoords() const{
 				return tp->getCoords();
 			}
 
 			//image coodinate
-			std::vector<cv::Point> getMatchPoints(){
+			std::vector<cv::Point> getMatchPoints() const{
 				return tp->getPoints();
 			}
 
@@ -1183,7 +1183,7 @@ namespace ending{
 		}
 
 		private:
-			static bool sortingFunction(Match &a, Match &b){
+			static bool sortingFunction(const Match &a, const Match &b){
 				return a.getCost() < b.getCost();
 			}
 		public:
