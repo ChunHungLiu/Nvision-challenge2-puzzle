@@ -17,7 +17,7 @@
 
 class Contour{
 private:
-	std::vector<std::vector<cv::Point>> contours;
+	std::vector< std::vector<cv::Point> > contours;
 	std::vector<cv::Vec4i> hierarchy;
 	std::vector<bool> flag;
 	cv::Size imageSize;
@@ -140,7 +140,7 @@ public:
 		return contours.size();
 	}
 
-	std::vector<std::vector<cv::Point>> &getContours(){
+	std::vector< std::vector<cv::Point> > &getContours(){
 		return contours;
 	}
 

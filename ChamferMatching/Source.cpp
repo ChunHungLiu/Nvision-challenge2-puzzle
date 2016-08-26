@@ -39,10 +39,10 @@ int main(void){
 	colorEdgeDetection(image, iedge, true);
 	edgeDetection(temp1, tedge1, false);
 	edgeDetection(temp2, tedge2, false);
-	cv::imshow("edge", iedge);
+	//cv::imshow("edge", iedge);
 	//rotate(tedge, tedge, -10);
-	cv::imshow("temp edge1", tedge1);
-	cv::imshow("temp edge2", tedge2);
+	//cv::imshow("temp edge1", tedge1);
+	//cv::imshow("temp edge2", tedge2);
 	//ending::debugimg = image.clone();
 
 	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20, 5);
@@ -75,7 +75,7 @@ int main(void){
 
 
 
-	cv::imshow("result2", image);
+	//cv::imshow("result2", image);
 	//cv::imshow("asd", ending::debugimg);
 	cv::waitKey(0);
 	return 0;

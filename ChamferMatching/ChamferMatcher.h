@@ -12,7 +12,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #ifdef __CHAMFER_DEBUG_MODE___
-#include <opencv2/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #endif
 
 #ifdef __CHAMFER_HIGHGUI___
@@ -293,7 +293,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC3
-		void show(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
+		void show(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)){
 			output = cv::Mat::zeros(imgSize, CV_8UC3);
 			for (int i = 0; i < coords.size(); i++){
 				output.at<cv::Vec3b>(coords[i].y + center.y, coords[i].x + center.x) = color;
@@ -309,7 +309,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC3
-		void showBoundingBox(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0, 255, 0)){
+		void showBoundingBox(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)){
 			output = cv::Mat::zeros(size_, CV_8UC3);
 			for (int i = 0; i<coords.size(); i++){
 				output.at < cv::Vec3b > (coords[i].y + (size_.height+1)/2, coords[i].x + (size_.width+1)/2) = color;
@@ -978,7 +978,7 @@ namespace ending{
 			}
 
 			//show match template position on the output image (output = CV_8UC3)
-			void showMatch(cv::Mat &output, cv::Vec3b &color = cv::Vec3b(0,255,0)){
+			void showMatch(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0,255,0)){
 				std::vector<cv::Point> p = tp->getCoords();
 				for (int i = 0; i < p.size(); i++){
 					output.at<cv::Vec3b>(point_.y + p[i].y, point_.x + p[i].x) = color;
@@ -1201,9 +1201,9 @@ namespace ending{
 
 			for (int i = 0; i < matches.size(); i++){
 				int j = 0;
-				cv::Point &pf = matches[i].getPoint();
+				const cv::Point &pf = matches[i].getPoint();
 				for (j = 0; j < match_count; j++){
-					cv::Point &pr = matchps[j].getPoint();
+					const cv::Point &pr = matchps[j].getPoint();
 					if (std::abs(pf.x - pr.x) + std::abs(pf.y - pr.y) < mc.minMatchDistance_)break;
 				}
 				if (j >= match_count){
@@ -1652,7 +1652,8 @@ namespace ending{
 
 	void ChamferMatcher::matching(cv::Mat &img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher){
 		matchpoints.clear();
-		createMaps(img.clone(), distimg, orientimg);
+		cv::Mat image = img.clone();
+		createMaps(image, distimg, orientimg);
 
 		Matcher *m;
 		bool releaseMatcher = false;
@@ -1718,8 +1719,8 @@ namespace ending{
 		if (matchers.size() <= 0){
 			std::cout << "No matcher found..." << std::endl;
 		}
-
-		createMaps(img, distimg, orientimg);
+		cv::Mat image = img.clone();
+		createMaps(image, distimg, orientimg);
 		
 #ifdef __CHAMFER_DEBUG_MODE___
 		cv::Mat d = distimg.clone();
