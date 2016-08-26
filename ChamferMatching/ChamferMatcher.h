@@ -1,11 +1,26 @@
 
-
+/********************************************************************
+**                                                                 **
+**     ChamferMatchi                           - ver 4.3 -         **
+**                                                                 **
+**          Created by Ending2012 (103062372) on 2016/8/9          **
+**                                                                 **
+**        Copyright (c) 2012 End of APP. All rights reserved.      **
+**                                                                 **
+*********************************************************************/
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#ifdef __CHAMFER_DEBUG_MODE___
+#include <opencv2/highgui.hpp>
+#endif
 
-#ifdef __MULTITHREAD_MATCHING__
+#ifdef __CHAMFER_HIGHGUI___
+#include <opencv2/highgui/highgui.hpp>
+#endif
+
+
+#ifdef __CHAMFER_MULTITHREAD___
 #include <thread>
 #endif
 
@@ -649,7 +664,7 @@ namespace ending{
 	}
 
 
-#ifdef __DEBUG_MODE___
+#ifdef __CHAMFER_DEBUG_MODE___
 	cv::Mat debugimg;
 #endif
 
@@ -1247,7 +1262,7 @@ namespace ending{
 
 			}  //for*/
 
-#ifdef __DEBUG_MODE___
+#ifdef __CHAMFER_DEBUG_MODE___
 			if (matchps.size() > 0){
 				matchps[0].showMatch(debugimg, cv::Vec3b(0, 0, 255));
 			}
@@ -1706,7 +1721,7 @@ namespace ending{
 
 		createMaps(img, distimg, orientimg);
 		
-#ifdef __DEBUG_MODE___
+#ifdef __CHAMFER_DEBUG_MODE___
 		cv::Mat d = distimg.clone();
 		cv::normalize(d, d, 1, 0, CV_MINMAX);
 		cv::imshow("distimg", d);

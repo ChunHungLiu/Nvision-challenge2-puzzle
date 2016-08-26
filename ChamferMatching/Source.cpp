@@ -8,8 +8,9 @@
 **                                                                 **
 *********************************************************************/
 
-
-#define __DEBUG_MODE___
+//#define __CHAMFER_HIGHGUI___
+//#define __CHAMFER_DEBUG_MODE___
+#define __CHAMFER_LOW_MEMORY__
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -42,7 +43,7 @@ int main(void){
 	//rotate(tedge, tedge, -10);
 	cv::imshow("temp edge1", tedge1);
 	cv::imshow("temp edge2", tedge2);
-	ending::debugimg = image.clone();
+	//ending::debugimg = image.clone();
 
 	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20, 5);
 
@@ -75,7 +76,7 @@ int main(void){
 
 
 	cv::imshow("result2", image);
-	cv::imshow("asd", ending::debugimg);
+	//cv::imshow("asd", ending::debugimg);
 	cv::waitKey(0);
 	return 0;
 }
