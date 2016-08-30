@@ -1,22 +1,46 @@
 
 /********************************************************************
 **                                                                 **
-**     ChamferMatchi                           - ver 4.3 -         **
+**     ChamferMatching                         - ver 4.1 -         **
 **                                                                 **
 **          Created by Ending2012 (103062372) on 2016/8/9          **
 **                                                                 **
 **        Copyright (c) 2012 End of APP. All rights reserved.      **
-**                                                                 **
+**                              E-mail: joe1397426985@gmail.com    **
 *********************************************************************/
+
+/*
+Flag:
+ __CHAMFER_DEBUG_MODE___
+ __CHAMFER_MULTITHREAD___
+ __CHAMFER_LOW_MEMORY___
+ __CHAMFER_TIME_REPORT___
+*/
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#ifdef __CHAMFER_DEBUG_MODE___
-#include <opencv2/highgui/highgui.hpp>
+
+#ifdef _DEBUG
+#define __CHAMFER_DEBUG_MODE___
 #endif
 
-#ifdef __CHAMFER_HIGHGUI___
-#include <opencv2/highgui/highgui.hpp>
+#ifdef __CHAMFER_DEBUG_MODE___
+#define _CHAMFER_STRINGIFY(x) #x
+#define _CHAMFER_TOSTRING(x) _CHAMFER_STRINGIFY(x)
+#define _CHAMFER_AT __FILE__ ":" _CHAMFER_TOSTRING(__LINE__)
+
+#define __I__ 0
+#define __E__ 1
+#define __W__ 2
+
+#define _CHAMFER_REPORT(type, msg) REPORTprinter(type, _CHAMFER_AT, msg)
+#else
+
+#define __I__ 
+#define __E__
+#define __W__ 
+#define _CHAMFER_REPORT(type, msg)
+
 #endif
 
 
@@ -29,6 +53,7 @@
 #include <vector>
 #include <queue>
 
+#include <cstdio>
 #include <cmath>
 
 namespace ending{
@@ -43,7 +68,23 @@ namespace ending{
 	class ChamferMatcher;
 	class RotationInvariantChamferMatcher;
 
-
+#ifdef __CHAMFER_DEBUG_MODE___
+	static void REPORTprinter(int type, const char *location, const char *msg){
+		switch (type){
+		case 0:
+			printf("::Info:: at %s: %s\n", location, msg);
+			break;
+		case 1:
+			printf("::Error:: at %s: %s\n", location, msg);
+			break;
+		case 2:
+			printf("::Warn:: at %s: %s\n", location, msg);
+			break;
+		default:
+			printf("::Error:: at %s: %s\n", location, msg);
+		}
+	}
+#endif
 
 	//************** Mat22 **************//   //OK
 	class Mat22{
@@ -65,7 +106,7 @@ namespace ending{
 			for (int i = 0; i < 4; i++)a[i] = m.a[i];
 		}
 
-		cv::Point operator*(cv::Point &p){
+		cv::Point operator*(cv::Point &p) const{
 			cv::Point n((int)(a[0] * p.x + a[1] * p.y+0.5), (int)(a[2] * p.x + a[3] * p.y+0.5));
 			return n;
 		}
@@ -102,7 +143,7 @@ namespace ending{
 			return angle;
 		}
 
-		void rotate(cv::Point &p, Orient &o){
+		void rotate(cv::Point &p, Orient &o) const{
 			p = (*this) * p;
 			if (o >= -CV_PI){
 				o = o + angle;
@@ -110,13 +151,13 @@ namespace ending{
 			}
 		}
 
-		void rotate(std::vector<cv::Point> &p, std::vector<Orient> &o){
+		void rotate(std::vector<cv::Point> &p, std::vector<Orient> &o) const{
 			for (int i = 0; i < p.size(); i++){
 				rotate(p[i], o[i]);
 			}
 		}
 
-		cv::Point operator*(cv::Point &p){
+		cv::Point operator*(cv::Point &p) const{
 			return rm*p;
 		}
 
@@ -153,20 +194,38 @@ namespace ending{
 
 		RotationMatrix &get(int idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
-			else return rotation_matrices_.back();
+			else{
+				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::get(int idx) : idx >= size");
+				_CHAMFER_REPORT(__W__, "Solution: will return last one");
+				return rotation_matrices_.back();
+			}
 		}
 
 		RotationMatrix &operator[](int idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
-			else return rotation_matrices_.back();
+			else{
+				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::get(int idx) : idx >= size");
+				_CHAMFER_REPORT(__W__, "Solution: will return last one");
+				return rotation_matrices_.back();
+			}
 		}
 
-		size_t size(){
+		size_t size() const{
 			return rotation_matrices_.size();
 		}
 
 		size_t create(double angv){
 			rotation_matrices_.clear();
+			if (angv < 0.0){
+				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::create(double angv) : angv < 0.0");
+				_CHAMFER_REPORT(__W__, "Solution : angv will be replaced by fabs(angv)");
+				angv = fabs(angv);
+			}
+			else if (angv == 0.0){
+				_CHAMFER_REPORT(__E__, "in ending::RotationMatrices::create(double angv) : angv == 0.0");
+				return 0;
+			}
+			
 			for (double i = 0; i < 360.0; i += angv){
 				RotationMatrix r(i);
 				rotation_matrices_.push_back(r);
@@ -279,7 +338,7 @@ namespace ending{
 		}
 
 		//copy this template (without scaled templates)
-		Template copy(){
+		Template copy() const{
 			Template t;
 			t.coords = coords;
 			t.orientations = orientations;
@@ -293,7 +352,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC3
-		void show(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)){
+		void show(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)) const{
 			output = cv::Mat::zeros(imgSize, CV_8UC3);
 			for (int i = 0; i < coords.size(); i++){
 				output.at<cv::Vec3b>(coords[i].y + center.y, coords[i].x + center.x) = color;
@@ -301,7 +360,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC1
-		void show(cv::Mat &output, uchar color){
+		void show(cv::Mat &output, uchar color) const{
 			output = cv::Mat::zeros(imgSize, CV_8UC1);
 			for (int i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + center.y, coords[i].x + center.x) = color;
@@ -309,7 +368,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC3
-		void showBoundingBox(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)){
+		void showBoundingBox(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)) const{
 			output = cv::Mat::zeros(size_, CV_8UC3);
 			for (int i = 0; i<coords.size(); i++){
 				output.at < cv::Vec3b > (coords[i].y + (size_.height+1)/2, coords[i].x + (size_.width+1)/2) = color;
@@ -317,7 +376,7 @@ namespace ending{
 		}
 
 		//output = CV_8UC1
-		void showBoundingBox(cv::Mat &output, uchar color){
+		void showBoundingBox(cv::Mat &output, uchar color) const{
 			output = cv::Mat::zeros(size_, CV_8UC1);
 			for (int i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + (size_.height + 1) / 2, coords[i].x + (size_.width + 1) / 2) = color;
@@ -401,42 +460,42 @@ namespace ending{
 		//create template
 		void create(std::vector<cv::Point> points, std::vector<Orient> orients){
 			
-			cv::Point min(0,0), max(0,0);
+			cv::Point _min(0,0), _max(0,0);
 
 			moment = cv::Point(0, 0);
 			for (size_t i = 0; i<coords.size(); ++i) {
-				if (i == 0)min = max = coords[i];
+				if (i == 0)_min = _max = coords[i];
 				moment.x += coords[i].x;
 				moment.y += coords[i].y;
 
-				if (min.x>coords[i].x) min.x = coords[i].x;
-				if (min.y>coords[i].y) min.y = coords[i].y;
-				if (max.x<coords[i].x) max.x = coords[i].x;
-				if (max.y<coords[i].y) max.y = coords[i].y;
+				if (_min.x>coords[i].x) _min.x = coords[i].x;
+				if (_min.y>coords[i].y) _min.y = coords[i].y;
+				if (_max.x<coords[i].x) _max.x = coords[i].x;
+				if (_max.y<coords[i].y) _max.y = coords[i].y;
 			}
 
-			size_.width = max.x - min.x;
-			size_.height = max.y - min.y;
+			size_.width = _max.x - _min.x;
+			size_.height = _max.y - _min.y;
 			int coords_size = (int)coords.size();
 
 			moment.x /= MAX(coords_size, 1);
 			moment.y /= MAX(coords_size, 1);
 
-			center.x = (max.x + min.x) / 2;   //bounding box center
-			center.y = (max.y + min.y) / 2;
+			center.x = (_max.x + _min.x) / 2;   //bounding box center
+			center.y = (_max.y + _min.y) / 2;
 
 			for (int i = 0; i<coords_size; ++i) {
 				coords[i].x -= center.x;
 				coords[i].y -= center.y;
 			}
 
-			if (min.x < 0){
-				center.x -= min.x;
-				moment.x -= min.x;
+			if (_min.x < 0){
+				center.x -= _min.x;
+				moment.x -= _min.x;
 			}
-			if (min.y < 0){
-				center.y -= min.y;
-				moment.y -= min.y;
+			if (_min.y < 0){
+				center.y -= _min.y;
+				moment.y -= _min.y;
 			}
 
 			if (imgSize.width < size_.width || imgSize.height < size_.height)imgSize = size_;
@@ -665,7 +724,9 @@ namespace ending{
 
 
 #ifdef __CHAMFER_DEBUG_MODE___
-	cv::Mat debugimg;
+	cv::Mat DEBUG_img;
+	cv::Mat DEBUG_distimg;
+	cv::Mat DEBUG_orientimg;
 #endif
 
 	/********* Matcher *********/
@@ -1182,11 +1243,39 @@ namespace ending{
 			std::vector<MatchPoint>().swap(matchpoints);
 		}
 
-		private:
-			static bool sortingFunction(const Match &a, const Match &b){
-				return a.getCost() < b.getCost();
+	private:
+		static bool sortingFunction(const Match &a, const Match &b){
+			return a.getCost() < b.getCost();
+		}
+#ifdef __CHAMFER_LOW_MEMORY___
+		void push_back(std::vector<Match> &matches, Match *mp){
+
+			MatcherConfig &mc = matcherconfig;
+			std::vector<Match>::iterator it;
+			//std::vector<Match>::iterator target = matches.end();
+			const cv::Point &pf = mp->getPoint();
+
+			for (it = matches.begin(); it != matches.end(); it++){
+				const cv::Point &pr = it->getPoint();
+				if (std::abs(pf.x - pr.x) + std::abs(pf.y - pr.y) < mc.minMatchDistance_){
+					if (mp->getCost() < it->getCost()) (*it) = (*mp);
+					else return;
+				}
+				//if (mp.getCost() < it->getCost() && target == matches.end())target = it;
 			}
-		public:
+
+			if (matches.size() < mc.maxMatches_) matches.push_back((*mp));
+			else{
+				if (mp->getCost() < matches.back().getCost()){
+					matches.back() = (*mp);
+				}
+			}
+			std::sort(matches.begin(), matches.end(), ending::Matcher::sortingFunction);
+			return;
+		}
+#endif
+
+	public:
 
 		void filter(std::vector<Match> &matches){
 			MatcherConfig &mc = matcherconfig;
@@ -1197,7 +1286,6 @@ namespace ending{
 			int match_count = 0;
 
 			std::sort(matches.begin(), matches.end(), ending::Matcher::sortingFunction);
-
 
 			for (int i = 0; i < matches.size(); i++){
 				int j = 0;
@@ -1263,11 +1351,14 @@ namespace ending{
 			}  //for*/
 
 #ifdef __CHAMFER_DEBUG_MODE___
-			if (matchps.size() > 0){
-				matchps[0].showMatch(debugimg, cv::Vec3b(0, 0, 255));
+			cv::Size s = DEBUG_img.size();
+			if (s.width <= 0 || s.height <= 0)_CHAMFER_REPORT(__W__, "no DEBUG_img");
+			else{
+				if (matchps.size() > 0){
+					matchps[0].showMatch(DEBUG_img, cv::Vec3b(0, 0, 255));
+				}
 			}
 #endif
-
 			matchpoints.resize(matchps.size());
 			for (int i = 0; i < matchps.size(); i++){
 				matchpoints[i] = MatchPoint(matchps[i]);
@@ -1318,7 +1409,7 @@ namespace ending{
 
 			std::vector<Match> matches;
 			matches.clear();
-
+			
 			for (int t_num = 0; t_num < templates.size(); t_num++){
 				slidingwindow.re();
 				while (slidingwindow.hasNext()){
@@ -1336,12 +1427,16 @@ namespace ending{
 
 					Match *mp = localmatching(p, tp, dist_img, orientation_img);
 					if (mp != NULL){
+#ifdef __CHAMFER_LOW_MEMORY___
+						push_back(matches, mp);
+#else
 						matches.push_back((*mp));
+#endif
 						delete mp;
 					}
 				}
 			}
-
+			
 			filter(matches);
 
 			return matchpoints.size();
@@ -1369,7 +1464,11 @@ namespace ending{
 
 					Match *mp = localmatching(p, tp, dist_img,orientation_img);
 					if (mp != NULL){
-						matches.push_back(*mp);
+#ifdef __CHAMFER_LOW_MEMORY___
+						push_back(matches, mp);
+#else
+						matches.push_back((*mp));
+#endif
 						delete mp;
 					}
 				}
@@ -1723,21 +1822,18 @@ namespace ending{
 		createMaps(image, distimg, orientimg);
 		
 #ifdef __CHAMFER_DEBUG_MODE___
-		cv::Mat d = distimg.clone();
-		cv::normalize(d, d, 1, 0, CV_MINMAX);
-		cv::imshow("distimg", d);
-		cv::Mat o = orientimg.clone();
-		cv::normalize(o, o, 1, 0, CV_MINMAX);
-		cv::imshow("orientimg", o);
+		DEBUG_distimg = distimg.clone();
+		cv::normalize(DEBUG_distimg, DEBUG_distimg, 1, 0, CV_MINMAX);
+		DEBUG_orientimg = orientimg.clone();
+		cv::normalize(DEBUG_orientimg, DEBUG_orientimg, 1, 0, CV_MINMAX);
 #endif
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
 			int num = (int)m->matching(distimg, orientimg);
-			
 			matchpoints.push_back(m->getMatchPoints());
 		}
-
+		
 	}
 
 	void ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints){
