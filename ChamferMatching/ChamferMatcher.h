@@ -268,7 +268,7 @@ namespace ending{
 		
 		Template(const Template &t){
 			scaled_templates.clear();
-			for (int i = 0; i < scaled_templates.size(); i++){
+			for (int i = 0; i < t.scaled_templates.size(); i++){
 				Template *tt = new Template(*(t.scaled_templates[i]));
 				scaled_templates.push_back(tt);
 			}
@@ -1293,15 +1293,14 @@ namespace ending{
 		void push_back(std::vector<Match> &matches, Match *mp){
 
 			MatcherConfig &mc = matcherconfig;
-			std::vector<Match>::iterator it;
 			//std::vector<Match>::iterator target = matches.end();
 			const cv::Point &pf = mp->getPoint();
 
-			for (it = matches.begin(); it != matches.end(); it++){
-				const cv::Point &pr = it->getPoint();
+			for (int i = 0; i < matches.size(); i++){
+				const cv::Point &pr = matches[i].getPoint();
 				if (std::abs(pf.x - pr.x) + std::abs(pf.y - pr.y) < mc.minMatchDistance_){
-					if (mp->getCost() < it->getCost()) (*it) = (*mp);
-					else return;
+					if (mp->getCost() < matches[i].getCost()) matches[i] = (*mp);
+					return;
 				}
 				//if (mp.getCost() < it->getCost() && target == matches.end())target = it;
 			}
