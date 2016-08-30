@@ -1,7 +1,7 @@
 
 /********************************************************************
 **                                                                 **
-**     ChamferMatching                         - ver 4.1 -         **
+**     ChamferMatching                         - ver 4.3 -         **
 **                                                                 **
 **          Created by Ending2012 (103062372) on 2016/8/9          **
 **                                                                 **
@@ -267,7 +267,11 @@ namespace ending{
 
 		
 		Template(const Template &t){
-			scaled_templates = t.scaled_templates;
+			scaled_templates.clear();
+			for (int i = 0; i < scaled_templates.size(); i++){
+				Template *tt = new Template(*(t.scaled_templates[i]));
+				scaled_templates.push_back(tt);
+			}
 			coords = t.coords;
 			orientations = t.orientations;
 			size_ = t.size_;
@@ -439,7 +443,12 @@ namespace ending{
 		void clear(){
 			coords.clear();
 			orientations.clear();
+
+			for (int i = 0; i < scaled_templates.size(); i++){
+				delete scaled_templates[i];
+			}
 			scaled_templates.clear();
+
 			imgSize = cv::Size(0, 0);
 			size_ = cv::Size(0, 0);
 			center = cv::Point(0, 0);
@@ -835,7 +844,7 @@ namespace ending{
 		};
 	private:
 
-		std::vector<Template> templates;   //rotated templ
+		std::vector<Template*> templates;   //rotated templ
 		MatcherConfig matcherconfig;
 
 	public:
@@ -994,8 +1003,8 @@ namespace ending{
 			Match(){}
 			~Match(){}
 
-			Match(Template &match_template, cv::Point point, double costs){
-				tp = &match_template;
+			Match(Template *match_template, cv::Point point, double costs){
+				tp = match_template;
 				point_ = point;
 				cost_ = costs;
 			}
@@ -1006,8 +1015,8 @@ namespace ending{
 				tp = m.tp;
 			}
 
-			void set(Template &match_template, cv::Point point, double costs){
-				tp = &match_template;
+			void set(Template *match_template, cv::Point point, double costs){
+				tp = match_template;
 				point_ = point;
 				cost_ = costs;
 			}
@@ -1177,6 +1186,24 @@ namespace ending{
 			matcherconfig = mc;
 		}
 
+		Matcher(const Matcher &m){
+			templates.clear();
+			for (int i = 0; i < m.templates.size(); i++){
+				Template *t = new Template(*(m.templates[i]));
+				templates.push_back(t);
+			}
+			matcherconfig = m.matcherconfig;
+			matchpoints = m.matchpoints;
+			slidingwindow = m.slidingwindow;
+			slidingwindowExists = m.slidingwindowExists;
+		}
+
+		~Matcher(){
+			for (int i = 0; i < templates.size(); i++){
+				delete templates[i];
+			}
+		}
+
 		void set(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
 			int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
 			double orientationWeight = 0.5, double truncate = 20){
@@ -1195,43 +1222,58 @@ namespace ending{
 		}
 
 		void clear(){
+			for (int i = 0; i < templates.size(); i++){
+				delete templates[i];
+			}
 			templates.clear();
 		}
 
 		void release(){
-			std::vector<Template>().swap(templates);
+			for (int i = 0; i < templates.size(); i++){
+				delete templates[i];
+			}
+			std::vector<Template*>().swap(templates);
 			MatchPoints().swap(matchpoints);
 		}
 
 		void setTemplate(cv::Mat &templ){
 			templates.clear();
-			Template t(templ);
+			Template *t = new Template(templ);
 			templates.push_back(t);
 		}
 
-		void setTemplate(Template &t){
+		void setTemplate(Template &templ){
 			templates.clear();
+			Template *t = new Template(templ);
 			templates.push_back(t);
 		}
 
-		void setTemplate(std::vector<Template> &t){
-			templates = t;
+		void setTemplate(std::vector<Template> &templs){
+			templates.clear();
+			for (int i = 0; i < templs.size(); i++){
+				Template *t = new Template(templs[i]);
+				templates.push_back(t);
+			}
 		}
 
 		size_t addTemplate(cv::Mat &templ){
-			Template t(templ);
+			Template *t = new Template(templ);
 			templates.push_back(t);
 			return templates.size() - 1;
 		}
 
-		size_t addTemplate(Template &t){
+		size_t addTemplate(Template &templ){
+			Template *t = new Template(templ);
 			templates.push_back(t);
 			return templates.size() - 1;
 		}
 
-		size_t addTemplate(std::vector<Template> &t){
+		size_t addTemplate(std::vector<Template> &templs){
 			size_t n = templates.size();
-			for (int i = 0; i < t.size(); i++)templates.push_back(t[i]);
+			for (int i = 0; i < templs.size(); i++){
+				Template *t = new Template(templs[i]);
+				templates.push_back(t);
+			}
 			return n;
 		}
 
@@ -1365,15 +1407,15 @@ namespace ending{
 			}
 		}
 
-		Match *localmatching(cv::Point &loc, Template &tp, cv::Mat &dist_img, cv::Mat &orient_img){
+		Match *localmatching(cv::Point &loc, Template *tp, cv::Mat &dist_img, cv::Mat &orient_img){
 			MatcherConfig &mc = matcherconfig;
 			double alpha = mc.orientationWeight_;
 			double beta = 1 - alpha;
 
 			double dist_cost = 0;
 			double orient_cost = 0;
-			std::vector<cv::Point> &p = tp.getCoords();
-			std::vector<Orient> &o = tp.getOrientations();
+			std::vector<cv::Point> &p = tp->getCoords();
+			std::vector<Orient> &o = tp->getOrientations();
 
 			int valid_orient = 0;
 
@@ -1418,14 +1460,14 @@ namespace ending{
 					cv::Point p = cur.first;
 					double s = cur.second;
 
-					Template &tp = templates[t_num].resize(s);
+					Template &tp = templates[t_num]->resize(s);
 
 					cv::Size tc = tp.getSize();
 					if (p.x - tc.width / 2 < 0 || p.x + tc.width / 2 >= sz.width)continue;
 					if (p.y - tc.height / 2 < 0 || p.y + tc.height / 2 >= sz.height)continue;
 
 
-					Match *mp = localmatching(p, tp, dist_img, orientation_img);
+					Match *mp = localmatching(p, &tp, dist_img, orientation_img);
 					if (mp != NULL){
 #ifdef __CHAMFER_LOW_MEMORY___
 						push_back(matches, mp);
@@ -1456,13 +1498,13 @@ namespace ending{
 					cv::Point p = cur.first;
 					double s = cur.second;
 
-					Template &tp = templates[t_num].resize(s);
+					Template &tp = templates[t_num]->resize(s);
 
 					cv::Size tc = tp.getSize();
 					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 > upper_bound.x)continue;
 					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 > upper_bound.y)continue;
 
-					Match *mp = localmatching(p, tp, dist_img,orientation_img);
+					Match *mp = localmatching(p, &tp, dist_img,orientation_img);
 					if (mp != NULL){
 #ifdef __CHAMFER_LOW_MEMORY___
 						push_back(matches, mp);
@@ -1540,7 +1582,7 @@ namespace ending{
 		void multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints);
 		void multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints);
 		void multimatching(std::vector<Matcher::MatchPoints> &matchpoints);
-		
+
 		
 		void clear(){
 			matchers.clear();
@@ -1727,6 +1769,14 @@ namespace ending{
 		createEdgeOrientationMap(edge_clone, orientation_img);
 		edge_clone.release();
 		fillNonContourOrientations(annotated_img, orientation_img);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+		DEBUG_distimg = dist_img.clone();
+		cv::normalize(DEBUG_distimg, DEBUG_distimg, 1, 0, CV_MINMAX);
+		DEBUG_orientimg = orientation_img.clone();
+		cv::normalize(DEBUG_orientimg, DEBUG_orientimg, 1, 0, CV_MINMAX);
+#endif
+
 	}  //OK
 
 	void ChamferMatcher::fillNonContourOrientations(cv::Mat& annotated_img, cv::Mat& orientation_img){
@@ -1813,6 +1863,7 @@ namespace ending{
 		matchpoints = m->getMatchPoints();
 	}
 
+
 	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
@@ -1820,13 +1871,6 @@ namespace ending{
 		}
 		cv::Mat image = img.clone();
 		createMaps(image, distimg, orientimg);
-		
-#ifdef __CHAMFER_DEBUG_MODE___
-		DEBUG_distimg = distimg.clone();
-		cv::normalize(DEBUG_distimg, DEBUG_distimg, 1, 0, CV_MINMAX);
-		DEBUG_orientimg = orientimg.clone();
-		cv::normalize(DEBUG_orientimg, DEBUG_orientimg, 1, 0, CV_MINMAX);
-#endif
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
