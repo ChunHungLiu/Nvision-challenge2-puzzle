@@ -32,7 +32,8 @@ Flag:
 #define __I__ 0
 #define __E__ 1
 #define __W__ 2
-
+#include <string>
+#include <ctime>
 #define _CHAMFER_REPORT(type, msg) REPORTprinter(type, _CHAMFER_AT, msg)
 #else
 
@@ -72,7 +73,7 @@ namespace ending{
 	static void REPORTprinter(int type, const char *location, const char *msg){
 		switch (type){
 		case 0:
-			printf("::Info:: at %s: %s\n", location, msg);
+			printf("::Info:: %s\n", msg);
 			break;
 		case 1:
 			printf("::Error:: at %s: %s\n", location, msg);
@@ -82,6 +83,22 @@ namespace ending{
 			break;
 		default:
 			printf("::Error:: at %s: %s\n", location, msg);
+		}
+	}
+
+	static void REPORTprinter(int type, const char *location, std::string msg){
+		switch (type){
+		case 0:
+			std::cout << "::Info:: " << msg << std::endl;
+			break;
+		case 1:
+			std::cout << "::Error:: at " << location << ": " << msg << std::endl;
+			break;
+		case 2:
+			std::cout << "::Warn:: at " << location << ": " << msg << std::endl;
+			break;
+		default:
+			std::cout << "::Error:: at " << location << ": " << msg << std::endl;
 		}
 	}
 #endif
@@ -1582,7 +1599,8 @@ namespace ending{
 		void multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints);
 		void multimatching(std::vector<Matcher::MatchPoints> &matchpoints);
 
-		
+		void multimatching(cv::Mat &img, std::vector<cv::Rect> boundingBox, std::vector<Matcher::MatchPoints> &matchpoints);
+
 		void clear(){
 			matchers.clear();
 		}  //OK
@@ -1868,12 +1886,30 @@ namespace ending{
 		if (matchers.size() <= 0){
 			std::cout << "No matcher found..." << std::endl;
 		}
+#ifdef __CHAMFER_DEBUG_MODE___
+		char msg[50];
+		sprintf(msg, "%d matchers.", matchers.size());
+		_CHAMFER_REPORT(__I__, msg);
+#endif
 		cv::Mat image = img.clone();
 		createMaps(image, distimg, orientimg);
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			sprintf(msg, "Template %d matching...", i+1);
+			_CHAMFER_REPORT(__I__, msg);
+			double startTime = (double)clock();
+#endif
+
 			int num = (int)m->matching(distimg, orientimg);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			double endTime = (double)clock();
+			sprintf(msg, "Template %d done in %lf seconds.", i + 1, (endTime-startTime)/1000);
+			_CHAMFER_REPORT(__I__, msg);
+#endif
 			matchpoints.push_back(m->getMatchPoints());
 		}
 		
@@ -1884,6 +1920,10 @@ namespace ending{
 		if (matchers.size() <= 0){
 			std::cout << "No matcher found..." << std::endl;
 		}
+
+		char msg[50];
+		sprintf(msg, "%d matchers.\n", matchers.size());
+		_CHAMFER_REPORT(__I__, msg);
 
 		distimg = dist_img;
 		orientimg = orient_img;
@@ -1902,10 +1942,57 @@ namespace ending{
 			std::cout << "No matcher found..." << std::endl;
 		}
 
+		char msg[50];
+		sprintf(msg, "%d matchers.\n", matchers.size());
+		_CHAMFER_REPORT(__I__, msg);
+
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
 			int num = (int)m->matching(distimg, orientimg);
 
+			matchpoints.push_back(m->getMatchPoints());
+		}
+	}
+
+	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<cv::Rect> boundingBox, std::vector<Matcher::MatchPoints> &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			std::cout << "No matcher found..." << std::endl;
+		}
+#ifdef __CHAMFER_DEBUG_MODE___
+		char msg[50];
+		sprintf(msg, "%d matchers.", matchers.size());
+		_CHAMFER_REPORT(__I__, msg);
+#endif
+		cv::Mat image = img.clone();
+		createMaps(image, distimg, orientimg);
+
+		for (int i = 0; i < matchers.size(); i++){
+			Matcher *m = &matchers[i];
+
+			cv::Point lower;
+			cv::Point upper;
+			if (i < boundingBox.size()){
+				lower = cv::Point(boundingBox[i].x, boundingBox[i].y);
+				upper = cv::Point(boundingBox[i].x + boundingBox[i].width, boundingBox[i].y + boundingBox[i].height);
+			} else{
+				lower = cv::Point(0, 0);
+				upper = cv::Point(image.size().width, image.size().height);
+			}
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			sprintf(msg, "Template %d matching...", i + 1);
+			_CHAMFER_REPORT(__I__, msg);
+			double startTime = (double)clock();
+#endif
+
+			int num = (int)m->matching(distimg, orientimg, lower, upper);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			double endTime = (double)clock();
+			sprintf(msg, "Template %d done in %lf seconds.", i + 1, (endTime - startTime) / 1000);
+			_CHAMFER_REPORT(__I__, msg);
+#endif
 			matchpoints.push_back(m->getMatchPoints());
 		}
 	}
