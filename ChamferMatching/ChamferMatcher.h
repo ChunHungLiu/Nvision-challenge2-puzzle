@@ -34,7 +34,7 @@ Flag:
 #define __W__ 2
 #include <string>
 #include <ctime>
-#define _CHAMFER_REPORT(type, msg) REPORTprinter(type, _CHAMFER_AT, msg)
+#define _CHAMFER_REPORT(type) REPORTprinter(type, _CHAMFER_AT)
 #else
 
 #define __I__ 
@@ -70,35 +70,19 @@ namespace ending{
 	class RotationInvariantChamferMatcher;
 
 #ifdef __CHAMFER_DEBUG_MODE___
-	static void REPORTprinter(int type, const char *location, const char *msg){
+	static void REPORTprinter(int type, const char *location){
 		switch (type){
 		case 0:
-			printf("::Info:: %s\n", msg);
+			printf("::Info:: ");
 			break;
 		case 1:
-			printf("::Error:: at %s: %s\n", location, msg);
+			printf("::Error:: at %s: ", location);
 			break;
 		case 2:
-			printf("::Warn:: at %s: %s\n", location, msg);
+			printf("::Warn:: at %s: ", location);
 			break;
 		default:
-			printf("::Error:: at %s: %s\n", location, msg);
-		}
-	}
-
-	static void REPORTprinter(int type, const char *location, std::string msg){
-		switch (type){
-		case 0:
-			std::cout << "::Info:: " << msg << std::endl;
-			break;
-		case 1:
-			std::cout << "::Error:: at " << location << ": " << msg << std::endl;
-			break;
-		case 2:
-			std::cout << "::Warn:: at " << location << ": " << msg << std::endl;
-			break;
-		default:
-			std::cout << "::Error:: at " << location << ": " << msg << std::endl;
+			printf("::Error:: at %s: ", location);
 		}
 	}
 #endif
@@ -212,8 +196,9 @@ namespace ending{
 		RotationMatrix &get(int idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
-				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::get(int idx) : idx >= size");
-				_CHAMFER_REPORT(__W__, "Solution: will return last one");
+				_CHAMFER_REPORT(__W__);
+				std::cout << "in ending::RotationMatrices::get(int idx) : index out of boundary." << std::endl;
+				std::cout << "\tHandle: will return last one." << std::endl;
 				return rotation_matrices_.back();
 			}
 		}
@@ -221,8 +206,9 @@ namespace ending{
 		RotationMatrix &operator[](int idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
-				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::get(int idx) : idx >= size");
-				_CHAMFER_REPORT(__W__, "Solution: will return last one");
+				_CHAMFER_REPORT(__W__);
+				std::cout << "in ending::RotationMatrices::get(int idx) : index out of boundary." << std::endl;
+				std::cout << "\tHandle: will return last one." << std::endl;
 				return rotation_matrices_.back();
 			}
 		}
@@ -234,12 +220,14 @@ namespace ending{
 		size_t create(double angv){
 			rotation_matrices_.clear();
 			if (angv < 0.0){
-				_CHAMFER_REPORT(__W__, "in ending::RotationMatrices::create(double angv) : angv < 0.0");
-				_CHAMFER_REPORT(__W__, "Solution : angv will be replaced by fabs(angv)");
+				_CHAMFER_REPORT(__W__);
+				std::cout << "in ending::RotationMatrices::create(double angv) : angv < 0.0 invalid value" << std::endl;
+				std::cout << "\tHandle: angv will be replaced by fabs(angv)" << std::endl;
 				angv = fabs(angv);
 			}
 			else if (angv == 0.0){
-				_CHAMFER_REPORT(__E__, "in ending::RotationMatrices::create(double angv) : angv == 0.0");
+				_CHAMFER_REPORT(__E__);
+				std::cout << "in ending::RotationMatrices::create(double angv) : angv == 0.0 invalid value" << std::endl;
 				return 0;
 			}
 			
@@ -500,8 +488,8 @@ namespace ending{
 				if (_max.y<coords[i].y) _max.y = coords[i].y;
 			}
 
-			size_.width = _max.x - _min.x;
-			size_.height = _max.y - _min.y;
+			size_.width = _max.x - _min.x + 1;
+			size_.height = _max.y - _min.y + 1;
 			int coords_size = (int)coords.size();
 
 			moment.x /= MAX(coords_size, 1);
@@ -562,8 +550,8 @@ namespace ending{
 				if (max.y<coords[i].y) max.y = coords[i].y;
 			}
 
-			size_.width = max.x - min.x;
-			size_.height = max.y - min.y;
+			size_.width = max.x - min.x + 1;
+			size_.height = max.y - min.y + 1;
 			int coords_size = (int)coords.size();
 
 			moment.x /= MAX(coords_size, 1);
@@ -1336,6 +1324,7 @@ namespace ending{
 	public:
 
 		void filter(std::vector<Match> &matches){
+			if (matches.size() == 0)return;
 			MatcherConfig &mc = matcherconfig;
 
 			std::vector<Match> matchps;
@@ -1410,7 +1399,10 @@ namespace ending{
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			cv::Size s = DEBUG_img.size();
-			if (s.width <= 0 || s.height <= 0)_CHAMFER_REPORT(__W__, "no DEBUG_img");
+			if (s.width <= 0 || s.height <= 0){
+				_CHAMFER_REPORT(__W__);
+				std::cout << "in ending::Matcher::filter() : no DEBUG_img" << std::endl;
+			}
 			else{
 				if (matchps.size() > 0){
 					matchps[0].showMatch(DEBUG_img, cv::Vec3b(0, 0, 255));
@@ -1467,8 +1459,15 @@ namespace ending{
 
 			std::vector<Match> matches;
 			matches.clear();
-			
+#ifdef __CHAMFER_DEBUG_MODE___
+			_CHAMFER_REPORT(__I__);
+			std::cout << templates.size() << " templates in this matcher." << std::endl;
+#endif
 			for (int t_num = 0; t_num < templates.size(); t_num++){
+#ifdef __CHAMFER_DEBUG_MODE___
+				_CHAMFER_REPORT(__I__);
+				std::cout << "matching " << t_num + 1 << "th template..." << std::endl;
+#endif
 				slidingwindow.re();
 				while (slidingwindow.hasNext()){
 					std::pair<cv::Point, double> cur = slidingwindow.next();
@@ -1506,7 +1505,15 @@ namespace ending{
 
 			std::vector<Match> matches;
 
+#ifdef __CHAMFER_DEBUG_MODE___
+			_CHAMFER_REPORT(__I__);
+			std::cout << templates.size() << " templates in this matcher." << std::endl;
+#endif
 			for (int t_num = 0; t_num < templates.size(); t_num++){
+#ifdef __CHAMFER_DEBUG_MODE___
+				_CHAMFER_REPORT(__I__);
+				std::cout << "matching " << t_num + 1 << "th template..." << std::endl;
+#endif
 				slidingwindow.re();
 				while (slidingwindow.hasNext()){
 					std::pair<cv::Point, double> cur = slidingwindow.next();
@@ -1517,8 +1524,8 @@ namespace ending{
 					Template &tp = templates[t_num]->resize(s);
 
 					cv::Size tc = tp.getSize();
-					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 > upper_bound.x)continue;
-					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 > upper_bound.y)continue;
+					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 >= upper_bound.x)continue;
+					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 >= upper_bound.y)continue;
 
 					Match *mp = localmatching(p, &tp, dist_img,orientation_img);
 					if (mp != NULL){
@@ -1532,7 +1539,7 @@ namespace ending{
 				}
 				
 			}
-			
+
 			filter(matches);
 
 			return matchpoints.size();
@@ -1790,8 +1797,10 @@ namespace ending{
 #ifdef __CHAMFER_DEBUG_MODE___
 		DEBUG_distimg = dist_img.clone();
 		cv::normalize(DEBUG_distimg, DEBUG_distimg, 1, 0, CV_MINMAX);
+		DEBUG_distimg.convertTo(DEBUG_distimg, CV_16UC1, 65536);
 		DEBUG_orientimg = orientation_img.clone();
 		cv::normalize(DEBUG_orientimg, DEBUG_orientimg, 1, 0, CV_MINMAX);
+		DEBUG_orientimg.convertTo(DEBUG_orientimg, CV_16UC1, 65536);
 #endif
 
 	}  //OK
@@ -1870,7 +1879,9 @@ namespace ending{
 	void ChamferMatcher::matching(Matcher::MatchPoints &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+			return;
 		}
 
 		Matcher *m = &matchers[0];
@@ -1881,16 +1892,21 @@ namespace ending{
 	}
 
 
+
+
 	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+			return;
 		}
+
 #ifdef __CHAMFER_DEBUG_MODE___
-		char msg[50];
-		sprintf(msg, "%d matchers.", matchers.size());
-		_CHAMFER_REPORT(__I__, msg);
+		_CHAMFER_REPORT(__I__);
+		std::cout << matchers.size() << " matchers." << std::endl;
 #endif
+
 		cv::Mat image = img.clone();
 		createMaps(image, distimg, orientimg);
 
@@ -1898,8 +1914,8 @@ namespace ending{
 			Matcher *m = &matchers[i];
 
 #ifdef __CHAMFER_DEBUG_MODE___
-			sprintf(msg, "Template %d matching...", i+1);
-			_CHAMFER_REPORT(__I__, msg);
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching " << i + 1 << "th matcher..." << std::endl;
 			double startTime = (double)clock();
 #endif
 
@@ -1907,30 +1923,51 @@ namespace ending{
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
-			sprintf(msg, "Template %d done in %lf seconds.", i + 1, (endTime-startTime)/1000);
-			_CHAMFER_REPORT(__I__, msg);
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching done in " << (endTime - startTime) / 1000.0 << " seconds." << std::endl;
 #endif
 			matchpoints.push_back(m->getMatchPoints());
 		}
 		
 	}
 
+
+
+
+
+
 	void ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+			return;
 		}
 
-		char msg[50];
-		sprintf(msg, "%d matchers.\n", matchers.size());
-		_CHAMFER_REPORT(__I__, msg);
+#ifdef __CHAMFER_DEBUG_MODE___
+		_CHAMFER_REPORT(__I__);
+		std::cout << matchers.size() << " matchers." << std::endl;
+#endif
 
 		distimg = dist_img;
 		orientimg = orient_img;
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching " << i + 1 << "th matcher..." << std::endl;
+			double startTime = (double)clock();
+#endif
+
 			int num = (int)m->matching(distimg, orientimg);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+			double endTime = (double)clock();
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching done in " << (endTime - startTime) / 1000.0 << " seconds." << std::endl;
+#endif
 
 			matchpoints.push_back(m->getMatchPoints());
 		}
@@ -1939,12 +1976,15 @@ namespace ending{
 	void ChamferMatcher::multimatching(std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+			return;
 		}
 
-		char msg[50];
-		sprintf(msg, "%d matchers.\n", matchers.size());
-		_CHAMFER_REPORT(__I__, msg);
+#ifdef __CHAMFER_DEBUG_MODE___
+		_CHAMFER_REPORT(__I__);
+		std::cout << matchers.size() << " matchers." << std::endl;
+#endif
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
@@ -1954,18 +1994,37 @@ namespace ending{
 		}
 	}
 
+
+
+
+
+
 	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<cv::Rect> boundingBox, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+			return;
 		}
+
 #ifdef __CHAMFER_DEBUG_MODE___
-		char msg[50];
-		sprintf(msg, "%d matchers.", matchers.size());
-		_CHAMFER_REPORT(__I__, msg);
+		_CHAMFER_REPORT(__I__);
+		std::cout << matchers.size() << " matchers." << std::endl;
 #endif
+
 		cv::Mat image = img.clone();
+
+#ifdef __CHAMFER_DEBUG_MODE___
+		_CHAMFER_REPORT(__I__);
+		std::cout << "Creating distance map and orientation map..." << std::endl;
+		double createTime = (double)clock();
+#endif
 		createMaps(image, distimg, orientimg);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+		_CHAMFER_REPORT(__I__);
+		std::cout << "Done in " << ((double)clock() - createTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
+#endif
 
 		for (int i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
@@ -1981,8 +2040,8 @@ namespace ending{
 			}
 
 #ifdef __CHAMFER_DEBUG_MODE___
-			sprintf(msg, "Template %d matching...", i + 1);
-			_CHAMFER_REPORT(__I__, msg);
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching " << i + 1 << "th matcher..." << std::endl;
 			double startTime = (double)clock();
 #endif
 
@@ -1990,9 +2049,10 @@ namespace ending{
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
-			sprintf(msg, "Template %d done in %lf seconds.", i + 1, (endTime - startTime) / 1000);
-			_CHAMFER_REPORT(__I__, msg);
+			_CHAMFER_REPORT(__I__);
+			std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
+
 			matchpoints.push_back(m->getMatchPoints());
 		}
 	}

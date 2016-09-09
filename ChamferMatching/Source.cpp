@@ -21,8 +21,8 @@
 #include <ctime>
 #include <cstdio>
 
-#include <Windows.h>
-#include <Psapi.h>
+//#include <Windows.h>
+//#include <Psapi.h>
 
 #include "Color.h"
 #include "Contour.h"
@@ -31,10 +31,12 @@
 
 std::vector<cv::Rect> list(){
 	std::vector<cv::Rect> b;
-	b.push_back(cv::Rect(23, 160, 100, 93));
-	b.push_back(cv::Rect(117, 172, 93, 85));
-	b.push_back(cv::Rect(203, 171, 99, 90));
-	b.push_back(cv::Rect(287, 172, 84, 82));
+	//b.push_back(cv::Rect(23, 160, 100, 93));
+	//b.push_back(cv::Rect(117, 172, 93, 85));
+	//b.push_back(cv::Rect(203, 171, 99, 90));
+	//b.push_back(cv::Rect(287, 172, 84, 82));
+
+	//b.push_back(cv::Rect(196,329,99,73));
 
 	return b;
 }
@@ -51,6 +53,7 @@ int main(void){
 	//cv::Mat tedge1;
 	//cv::Mat tedge2;
 	colorEdgeDetection(image, iedge, true);
+	cv::imwrite("edge.png", iedge);
 	//edgeDetection(temp1, tedge1, false);
 	//edgeDetection(temp2, tedge2, false);
 	//cv::imshow("edge", iedge);
@@ -59,19 +62,23 @@ int main(void){
 	//cv::imshow("temp edge2", tedge2);
 	//ending::debugimg = image.clone();
 
-	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 3, 0.8, 1.2, 0.5, 20, 5);
+	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 3, 1.0, 1.2, 0.5, 20, 5);
 
 	std::vector<cv::Rect> boundingBoxList = list();
 
 	std::vector<ending::Matcher::MatchPoints> matchpoints;
-	
-	for (char a = 'A'; a <= 'D'; a++){
+	/*
+	for (char a = 'N'; a <= 'N'; a++){
 		char name[50];
 		sprintf(name, "edge_x04/%c.png", a);
 		cv::Mat templ = cv::imread(name, CV_LOAD_IMAGE_GRAYSCALE);
 		std::cout << "Loading template: " << name << std::endl;
 		cmatcher.addMatcher(templ);
-	}
+	}*/
+
+	cv::Mat templ = cv::imread("plate.png", CV_LOAD_IMAGE_GRAYSCALE);
+	std::cout << "Loading template: " << "plate.png" << std::endl;
+	cmatcher.addMatcher(templ);
 
 	//cv::chamerMatching(iedge, tedge, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
 
@@ -82,9 +89,12 @@ int main(void){
 
 	endTime = (double)clock();
 
-	PROCESS_MEMORY_COUNTERS beginpms, endpms;
+	cv::imwrite("Distance.png", ending::DEBUG_distimg);
+	cv::imwrite("Orient.png", ending::DEBUG_orientimg);
 
-	GetProcessMemoryInfo(GetCurrentProcess(), &beginpms, sizeof(beginpms));
+	//PROCESS_MEMORY_COUNTERS beginpms, endpms;
+
+	//GetProcessMemoryInfo(GetCurrentProcess(), &beginpms, sizeof(beginpms));
 
 	for (int i = 0; i < matchpoints.size(); i++){
 		if (matchpoints[i].size() <= 0){
@@ -121,14 +131,17 @@ int main(void){
 		std::cout << std::endl;
 	}
 
-	GetProcessMemoryInfo(GetCurrentProcess(), &endpms, sizeof(endpms));
+	//GetProcessMemoryInfo(GetCurrentProcess(), &endpms, sizeof(endpms));
 
-	std::cout << "Peak Memory Usage: " << endpms.PeakWorkingSetSize - beginpms.WorkingSetSize << std::endl;
-	std::cout << "Memory Usage: " << endpms.WorkingSetSize - beginpms.WorkingSetSize << std::endl;
+	//std::cout << "Peak Memory Usage: " << endpms.PeakWorkingSetSize - beginpms.WorkingSetSize << std::endl;
+	//std::cout << "Memory Usage: " << endpms.WorkingSetSize - beginpms.WorkingSetSize << std::endl;
 	std::cout << "Take: " << (endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
 
 
     //cv::imwrite("result2.png", image);
+
+	
+
 	cv::imshow("result2", image);
 	cv::imwrite("results.png", image);
 	cv::imshow("asd", ending::DEBUG_img);
