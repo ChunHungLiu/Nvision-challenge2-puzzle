@@ -29,6 +29,78 @@
 #include "Detector.h"
 #include "ChamferMatcher.h"
 
+
+ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, cv::Rect boundingBox){
+
+	cv::Mat iedge;
+	colorEdgeDetection(image, iedge, true);
+
+	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 3, 0.6, 0.8, 0.5, 20, 5);
+
+	ending::DEBUG_img = image.clone();  //if no defined __CHAMFER_DEBUG_MODE___  then remove this
+
+	ending::Matcher::MatchPoints matchpoints;
+
+	cmatcher.addMatcher(templ);
+	cmatcher.matching(iedge, boundingBox, matchpoints);
+
+	cv::imshow("debug", ending::DEBUG_img);   //if no defined __CHAMFER_DEBUG_MODE___  then remove this
+
+	return matchpoints;
+}
+
+
+int main(void){
+	cv::Mat image = cv::imread("image2.jpg");
+	cv::Mat templ = cv::imread("edge_x04/N.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+	cv::Rect boundingBox(231,187,93,94);
+
+
+
+
+	ending::Matcher::MatchPoints matchpoints = match(image, templ, boundingBox);
+
+
+
+
+
+	if (matchpoints.size() <= 0){
+		std::cout << "No any matching results in matcher" << std::endl;
+		return 0;
+	}
+
+	ending::Matcher::MatchPoint &mp = matchpoints[0];
+	cv::Point matchCenter = mp.getBoundingBoxCenter();
+	double rotateAngle = mp.getAngle();
+	double scaleSize = mp.getScale();
+	double matchCost = mp.getCost();
+	cv::Size matchSize = mp.getBoundingBoxSize();
+
+
+	int maxRadius_ = (matchSize.width > matchSize.height ? matchSize.width : matchSize.height);
+	maxRadius_ = (maxRadius_ + 1) / 2;
+	cv::circle(image, matchCenter, maxRadius_, cv::Scalar(0, 255, 0));
+	cv::Point lineEnd(matchCenter.x - (int)(sin(rotateAngle)*maxRadius_ + 0.5), matchCenter.y - (int)(cos(rotateAngle)*maxRadius_ + 0.5));
+	cv::line(image, matchCenter, lineEnd, cv::Scalar(0, 255, 0));
+
+	std::cout << "Best matching result: " << std::endl;
+	std::cout << "\t Center: (" << matchCenter.x << ", " << matchCenter.y << ") " << std::endl;
+	std::cout << "\t Box: (" << matchCenter.x - matchSize.width / 2 << ", " << matchCenter.y - matchSize.height / 2 << ") ";
+	std::cout << "(" << matchCenter.x + matchSize.width / 2 << ", " << matchCenter.y + matchSize.height / 2 << ") " << std::endl;
+	std::cout << "\t Angle: " << (rotateAngle / CV_PI * 180.0) << std::endl;
+	std::cout << "\t Scale: " << scaleSize << std::endl;
+	std::cout << "\t Cost: " << matchCost << std::endl;
+	std::cout << std::endl;
+
+	cv::imshow("image", image);
+
+	cv::waitKey(0);
+	return 0;
+}
+
+
+/*
 std::vector<cv::Rect> list(){
 	std::vector<cv::Rect> b;
 	//b.push_back(cv::Rect(23, 160, 100, 93));
@@ -67,18 +139,14 @@ int main(void){
 	std::vector<cv::Rect> boundingBoxList = list();
 
 	std::vector<ending::Matcher::MatchPoints> matchpoints;
-	/*
+
 	for (char a = 'N'; a <= 'N'; a++){
 		char name[50];
 		sprintf(name, "edge_x04/%c.png", a);
 		cv::Mat templ = cv::imread(name, CV_LOAD_IMAGE_GRAYSCALE);
 		std::cout << "Loading template: " << name << std::endl;
 		cmatcher.addMatcher(templ);
-	}*/
-
-	cv::Mat templ = cv::imread("plate.png", CV_LOAD_IMAGE_GRAYSCALE);
-	std::cout << "Loading template: " << "plate.png" << std::endl;
-	cmatcher.addMatcher(templ);
+	}
 
 	//cv::chamerMatching(iedge, tedge, results, costs, 1, 20, 1.0, 3, 3, 5, 0.6, 1.6, 0.5, 20);
 
@@ -149,3 +217,4 @@ int main(void){
 	cv::waitKey(0);
 	return 0;
 }
+*/

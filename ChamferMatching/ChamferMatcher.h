@@ -1099,11 +1099,10 @@ namespace ending{
 
 				imgSize = t.size();
 				size_ = t.getSize();
-
 				boundingBoxCenter_ = mp.getPoint();
+
 				center_ = cv::Point(imgSize.width / 2 - localcenter.x + boundingBoxCenter_.x, imgSize.height / 2 - localcenter.y + boundingBoxCenter_.y);
 				moment_ = t.getMoment();
-
 				angle_ = t.getRotatedAngle();
 				scaled_ = t.getScale();
 				costs_ = mp.getCost();
@@ -1296,7 +1295,6 @@ namespace ending{
 		}
 #ifdef __CHAMFER_LOW_MEMORY___
 		void push_back(std::vector<Match> &matches, Match *mp){
-
 			MatcherConfig &mc = matcherconfig;
 			//std::vector<Match>::iterator target = matches.end();
 			const cv::Point &pf = mp->getPoint();
@@ -1328,6 +1326,10 @@ namespace ending{
 			MatcherConfig &mc = matcherconfig;
 
 			std::vector<Match> matchps;
+#ifdef __CHAMFER_LOW_MEMORY___
+			matchps = matches;
+#else
+
 			matchps.resize(mc.maxMatches_);
 
 			int match_count = 0;
@@ -1347,6 +1349,7 @@ namespace ending{
 				}
 				if (match_count >= mc.maxMatches_)break;
 			}
+#endif
 			/*
 
 			for (int i = 0; i < matchpoints.size(); i++){
@@ -1409,6 +1412,7 @@ namespace ending{
 				}
 			}
 #endif
+			
 			matchpoints.resize(matchps.size());
 			for (int i = 0; i < matchps.size(); i++){
 				matchpoints[i] = MatchPoint(matchps[i]);
@@ -1601,6 +1605,7 @@ namespace ending{
 		void matching(cv::Mat &img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher = true);
 		void matching(cv::Mat &dist_img, cv::Mat &orient_img, cv::Mat &templ, Matcher::MatchPoints &matchpoints, bool rebuild_matcher = true);
 		void matching(Matcher::MatchPoints &matchpoints);
+		void matching(cv::Mat &img, cv::Rect boundingBox, Matcher::MatchPoints &matchpoints);
 		
 		void multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints);
 		void multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints);
@@ -1891,6 +1896,41 @@ namespace ending{
 		matchpoints = m->getMatchPoints();
 	}
 
+	void ChamferMatcher::matching(cv::Mat &img, cv::Rect boundingBox, Matcher::MatchPoints &matchpoints){
+		matchpoints.clear();
+		if (matchers.size() <= 0){
+			_CHAMFER_REPORT(__W__);
+			std::cout << "No matcher found..." << std::endl;
+			return;
+		}
+
+		cv::Mat image = img.clone();
+		createMaps(image, distimg, orientimg);
+
+		cv::Point lower = cv::Point(boundingBox.x, boundingBox.y);
+		cv::Point upper = cv::Point(boundingBox.x + boundingBox.width, boundingBox.y + boundingBox.height);
+		
+
+#ifdef __CHAMFER_DEBUG_MODE___
+		_CHAMFER_REPORT(__I__);
+		std::cout << "matching..." << std::endl;
+		double startTime = (double)clock();
+#endif
+
+		Matcher *m = &matchers[0];
+		int num = (int)m->matching(distimg, orientimg, lower, upper);
+
+#ifdef __CHAMFER_DEBUG_MODE___
+		double endTime = (double)clock();
+		_CHAMFER_REPORT(__I__);
+		std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
+#endif
+
+		matchpoints = m->getMatchPoints();
+	}
+
+
+
 
 
 
@@ -1924,7 +1964,7 @@ namespace ending{
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
 			_CHAMFER_REPORT(__I__);
-			std::cout << "matching done in " << (endTime - startTime) / 1000.0 << " seconds." << std::endl;
+			std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
 			matchpoints.push_back(m->getMatchPoints());
 		}
@@ -1966,7 +2006,7 @@ namespace ending{
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
 			_CHAMFER_REPORT(__I__);
-			std::cout << "matching done in " << (endTime - startTime) / 1000.0 << " seconds." << std::endl;
+			std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
 
 			matchpoints.push_back(m->getMatchPoints());
