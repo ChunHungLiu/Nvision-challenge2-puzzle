@@ -1482,8 +1482,8 @@ namespace ending{
 					Template &tp = templates[t_num]->resize(s);
 
 					cv::Size tc = tp.getSize();
-					if (p.x - tc.width / 2 < 0 || p.x + tc.width / 2 >= sz.width)continue;
-					if (p.y - tc.height / 2 < 0 || p.y + tc.height / 2 >= sz.height)continue;
+					if (p.x - tc.width / 2 < 0 || p.x + tc.width / 2 >= sz.width-1)continue;
+					if (p.y - tc.height / 2 < 0 || p.y + tc.height / 2 >= sz.height-1)continue;
 
 
 					Match *mp = localmatching(p, &tp, dist_img, orientation_img);
@@ -1528,8 +1528,8 @@ namespace ending{
 					Template &tp = templates[t_num]->resize(s);
 
 					cv::Size tc = tp.getSize();
-					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 >= upper_bound.x)continue;
-					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 >= upper_bound.y)continue;
+					if (p.x - tc.width / 2 < lower_bound.x || p.x + tc.width / 2 >= upper_bound.x-1)continue;
+					if (p.y - tc.height / 2 < lower_bound.y || p.y + tc.height / 2 >= upper_bound.y-1)continue;
 
 					Match *mp = localmatching(p, &tp, dist_img,orientation_img);
 					if (mp != NULL){
