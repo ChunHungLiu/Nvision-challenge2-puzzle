@@ -2455,7 +2455,17 @@ namespace ending{
 		}
 
 		RotationInvariantChamferMatcher(MatcherConfig &mc) : rotation_matrices_(mc._angv), ChamferMatcher(mc){
-
+			std::cout << mc.templScale_ << std::endl;
+			std::cout << mc.maxMatches_ << std::endl;
+			std::cout << mc.minMatchDistance_ << std::endl;
+			std::cout << mc.padX_ << std::endl;
+			std::cout << mc.padY_ << std::endl;
+			std::cout << mc.scales_ << std::endl;
+			std::cout << mc.minScale_ << std::endl;
+			std::cout << mc.maxScale_ << std::endl;
+			std::cout << mc.orientationWeight_ << std::endl;
+			std::cout << mc.truncate_ << std::endl;
+			std::cout << mc._angv << std::endl;
 		}
 
 		void setMatcher(cv::Mat &templ);

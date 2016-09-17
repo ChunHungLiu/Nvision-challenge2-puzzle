@@ -45,7 +45,7 @@ namespace ending{
 			return key;
 		}
 
-		int push_key(std::string &section, std::string &name, std::string &value){
+		void push_key(std::string &section, std::string &name, std::string &value){
 			std::string key = generateKey(section, name);
 			_value[key] = value;
 		}
@@ -127,6 +127,7 @@ namespace ending{
 				linenum++;
 				delete[] cline;
 			}
+			return 0;
 		}
 
 		bool error(){

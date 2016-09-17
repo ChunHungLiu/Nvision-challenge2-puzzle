@@ -19,6 +19,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <ctime>
 #include <cstdio>
 
@@ -29,14 +30,13 @@
 #include "Contour.h"
 #include "Detector.h"
 #include "ChamferMatcher.h"
+#include "INIParser.h"
 
 
-ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, cv::Rect boundingBox){
+ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, ending::RChamferMatcher::MatcherConfig &mc){
 
 	cv::Mat iedge;
 	colorEdgeDetection(image, iedge, true);
-
-	ending::RChamferMatcher::MatcherConfig mc(1, 20, 1.0, 3, 3, 3, 0.6, 0.8, 0.5, 20, 5);
 
 	ending::RChamferMatcher cmatcher(mc);
 
@@ -45,24 +45,64 @@ ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, cv::Rect boun
 	ending::Matcher::MatchPoints matchpoints;
 
 	cmatcher.addMatcher(templ);
-	cmatcher.matching(iedge, boundingBox, matchpoints);
+	cmatcher.matching(iedge,cv::Rect(0,0,image.size().width, image.size().height), matchpoints);
 
 	cv::imshow("debug", ending::DEBUG_img);   //if no defined __CHAMFER_DEBUG_MODE___  then remove this
 
 	return matchpoints;
 }
 
+cv::Point getCVPoint(ending::INIparser &parser, const std::string &section, const std::string &name){
+	std::string str = parser.getString(section, name);
+	std::stringstream ss(str.substr(0, str.find(',')));
+	int x, y;
+	ss >> x;
+	std::stringstream ss1(str.substr(str.find(',') + 1, std::string::npos));
+	ss1 >> y;
+	
+	return cv::Point(x, y);
+}
+
+void getHolePos(ending::INIparser &parser, const std::string &section, std::map<char, cv::Point> &map){
+	char c[1] = {};
+	for (*c = 'A'; *c <= 'Z'; (*c)++){
+		cv::Point p =  getCVPoint(parser, section, std::string(c));
+		map[(*c)] = p;
+	}
+}
+
+void getRChamferMatcherConfig(ending::INIparser &parser, const std::string &section, ending::RChamferMatcher::MatcherConfig &mc){
+	mc.setTemplScale(parser.getDouble(section, "SCALE"));
+	mc.setMaxMatches(parser.getInt(section, "MAXMATCHES"));
+	mc.setMinMatchDistance(parser.getDouble(section, "MINMATCHDISTANCE"));
+	mc.setPadX(parser.getInt(section, "XSTEP"));
+	mc.setPadY(parser.getInt(section, "YSTEP"));
+	mc.setScales(parser.getInt(section, "SCALES"));
+	mc.setMinScale(parser.getDouble(section, "MINSCALE"));
+	mc.setMaxScale(parser.getDouble(section, "MAXSCALE"));
+	mc.setOrientationWeight(parser.getDouble(section, "ORIENTATIONWEIGHT"));
+	mc.setTruncate(parser.getDouble(section, "THRESHOLD"));
+	mc.setAngularVelocity(parser.getDouble(section, "ROTATION"));
+}
+
 
 int main(void){
-	cv::Mat image = cv::imread("image2.jpg");
-	cv::Mat templ = cv::imread("edge_x04/N.png", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat image = cv::imread("image.jpg");
+	std::ifstream fin("config.ini");
+	ending::INIparser parser(fin);
 
-	cv::Rect boundingBox(231,187,93,94);
+	if (parser.error()){
+		std::cout << parser.errormsg() << std::endl;
+		return 0;
+	}
+
+	cv::Mat templ = cv::imread(parser.getString("plate", "PATH"), CV_LOAD_IMAGE_GRAYSCALE);
 
 
+	ending::RChamferMatcher::MatcherConfig mc;
 
-
-	ending::Matcher::MatchPoints matchpoints = match(image, templ, boundingBox);
+	getRChamferMatcherConfig(parser, "plate", mc);
+	ending::Matcher::MatchPoints matchpoints = match(image, templ, mc);
 
 
 
