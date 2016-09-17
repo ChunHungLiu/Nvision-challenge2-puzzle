@@ -121,7 +121,6 @@ namespace ending{
 							push_key(section, name, value);
 						}
 					}
-					std::cout << section << " : " << name << " : " << value << std::endl;
 				}
 
 				linenum++;

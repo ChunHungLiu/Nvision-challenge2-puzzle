@@ -10,7 +10,6 @@
 
 #define __CHAMFER_DEBUG_MODE___
 #define __CHAMFER_LOW_MEMORY___
-#define __CHAMFER_CONFIG___
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
