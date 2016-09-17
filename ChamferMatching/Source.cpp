@@ -2,7 +2,7 @@
 **                                                                 **
 **     ChamferMatching                         - ver 4.3 -         **
 **                                                                 **
-**          Created by Ending2012 (103062372) on 2016/8/9          **
+**         Created by Ending2012 (Tsu-Ching Hsiao) on 2016/8/9     **
 **                                                                 **
 **        Copyright (c) 2012 End of APP. All rights reserved.      **
 **                              E-mail: joe1397426985@gmail.com    **
@@ -10,6 +10,7 @@
 
 #define __CHAMFER_DEBUG_MODE___
 #define __CHAMFER_LOW_MEMORY___
+#define __CHAMFER_CONFIG___
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -35,7 +36,9 @@ ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, cv::Rect boun
 	cv::Mat iedge;
 	colorEdgeDetection(image, iedge, true);
 
-	ending::RChamferMatcher cmatcher(1, 20, 1.0, 3, 3, 3, 0.6, 0.8, 0.5, 20, 5);
+	ending::RChamferMatcher::MatcherConfig mc(1, 20, 1.0, 3, 3, 3, 0.6, 0.8, 0.5, 20, 5);
+
+	ending::RChamferMatcher cmatcher(mc);
 
 	ending::DEBUG_img = image.clone();  //if no defined __CHAMFER_DEBUG_MODE___  then remove this
 

@@ -3,7 +3,7 @@
 **                                                                 **
 **     ChamferMatching                         - ver 4.3 -         **
 **                                                                 **
-**          Created by Ending2012 (103062372) on 2016/8/9          **
+**         Created by Ending2012 (Tsu-Ching Hsiao) on 2016/8/9     **
 **                                                                 **
 **        Copyright (c) 2012 End of APP. All rights reserved.      **
 **                              E-mail: joe1397426985@gmail.com    **
@@ -753,16 +753,16 @@ namespace ending{
 			friend class ChamferMatcher;
 			friend class RotationInvariantChamferMatcher;
 		private:
-			double templScale_ = 1;
-			int maxMatches_ = 20;
-			double minMatchDistance_ = 1.0;
-			int padX_ = 3;
-			int padY_ = 3;
-			int scales_ = 5;
-			double minScale_ = 0.6;
-			double maxScale_ = 1.6;
-			double orientationWeight_ = 0.5;
-			double truncate_ = 20;
+			double templScale_;
+			int maxMatches_;
+			double minMatchDistance_;
+			int padX_;
+			int padY_;
+			int scales_;
+			double minScale_;
+			double maxScale_;
+			double orientationWeight_;
+			double truncate_;
 
 		public:
 			MatcherConfig(double templScale = 1, int maxMatches = 20, double minMatchDistance = 20,
@@ -856,25 +856,41 @@ namespace ending{
 		class SlidingWindow{  //OK
 			friend class Matcher;
 		private:
-			bool has_next_ = true;
-			cv::Point cur_point_ = cv::Point(-1,-1);
-			double cur_scale_ = 0;
+			bool has_next_;
+			cv::Point cur_point_;
+			double cur_scale_;
 
-			double scale_step_ = 0;
-			int scaled_time_ = 0;
+			double scale_step_;
+			int scaled_time_;
 
-			cv::Point upper_bound_ = cv::Point(-1,-1);
-			cv::Point lower_bound_ = cv::Point(-1,-1);
+			cv::Point upper_bound_;
+			cv::Point lower_bound_;
 
-			int x_step_ = 3;
-			int y_step_ = 3;
-			int scales_ = 5;
-			double minScale_ = 0.6;
-			double maxScale_ = 1.6;
+			int x_step_;
+			int y_step_;
+			int scales_;
+			double minScale_;
+			double maxScale_;
 
 		public:
 
-			SlidingWindow(){ has_next_ = false; }
+			SlidingWindow(){
+				has_next_ = false;
+				cur_point_ = cv::Point(-1, -1);
+				cur_scale_ = 0;
+
+				scale_step_ = 0;
+				scaled_time_ = 0;
+
+				upper_bound_ = cv::Point(-1, -1);
+				lower_bound_ = cv::Point(-1, -1);
+
+				x_step_ = 3;
+				y_step_ = 3;
+				scales_ = 5;
+				minScale_ = 0.6;
+				maxScale_ = 1.6;
+			}
 
 			SlidingWindow(const SlidingWindow &sw){
 				upper_bound_ = sw.upper_bound_;
@@ -893,6 +909,7 @@ namespace ending{
 
 			//define  [lower_bound, upper_bound)
 			SlidingWindow(cv::Point lower_bound, cv::Point upper_bound, int x_step=3, int y_step=3, int scales=5, double minScale=0.6, double maxScale=1.6){
+				has_next_ = true;
 				upper_bound_ = upper_bound;
 				lower_bound_ = lower_bound;
 				x_step_ = x_step;
@@ -909,6 +926,7 @@ namespace ending{
 
 			//define   [0, imageSize)
 			SlidingWindow(cv::Size imageSize, int x_step = 3, int y_step = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6){
+				has_next_ = true;
 				lower_bound_ = cv::Point(0, 0);
 				upper_bound_ = cv::Point(imageSize.width, imageSize.height);
 				x_step_ = x_step;
@@ -1578,6 +1596,10 @@ namespace ending{
 			double orientationWeight = 0.5, double truncate = 20)
 			: matcherconfig(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate){
 			matchers.clear();
+		}
+
+		ChamferMatcher(Matcher::MatcherConfig &mc){
+			matcherconfig = mc;
 		}
 
 		void setMatcher(Matcher &m);   //OK
@@ -2397,6 +2419,32 @@ namespace ending{
 		public:
 		};
 
+		class MatcherConfig : public Matcher::MatcherConfig{
+			friend class RotationInvariantChamferMatcher;
+		private:
+			double _angv;
+		public:
+
+			MatcherConfig(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
+				int padY = 3, int scales = 5, double minScale = 0.6, double maxScale = 1.6,
+				double orientationWeight = 0.5, double truncate = 20, double angularVelocity = 30.0) : _angv(angularVelocity),
+				Matcher::MatcherConfig(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate){
+
+			}
+
+			MatcherConfig(const MatcherConfig &mc) : Matcher::MatcherConfig(mc){
+				_angv = mc._angv;
+			}
+
+			double getAngularVelocity(){
+				return _angv;
+			}
+
+			void setAngularVelocity(double angv){
+				_angv = angv;
+			}
+		};
+
 		typedef std::vector<RotationInvariantChamferMatcher::MatchPoint> MatchPoints;
 
 		RotationInvariantChamferMatcher(double templScale = 1, int maxMatches = 20, double minMatchDistance = 1.0, int padX = 3,
@@ -2405,6 +2453,11 @@ namespace ending{
 			ChamferMatcher(templScale, maxMatches, minMatchDistance, padX, padY, scales, minScale, maxScale, orientationWeight, truncate){
 
 		}
+
+		RotationInvariantChamferMatcher(MatcherConfig &mc) : rotation_matrices_(mc._angv), ChamferMatcher(mc){
+
+		}
+
 		void setMatcher(cv::Mat &templ);
 		size_t addMatcher(cv::Mat &templ);
 
