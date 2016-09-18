@@ -84,6 +84,26 @@ void getRChamferMatcherConfig(ending::INIparser &parser, const std::string &sect
 	mc.setAngularVelocity(parser.getDouble(section, "ROTATION"));
 }
 
+//change to plate scaled and rotated coordinate
+cv::Point pointTrans(cv::Point puz, ending::Matcher::MatchPoint &plate){
+	double sc = plate.getScale();
+	puz.x = (int)((double)puz.x * sc + 0.5);
+	puz.y = (int)((double)puz.y * sc + 0.5);
+	ending::RotationMatrix rm(plate.getAngle());
+	ending::Orient o;
+	rm.rotate(puz, o);
+	return puz;
+}
+
+//change to image coordinate and get bounding box
+cv::Rect getHoleBoundingBox(cv::Point puz, double widthScale, double heightScale, ending::Matcher::MatchPoint &plate){
+	puz = pointTrans(puz, plate);
+	cv::Size size = plate.getBoundingBoxSize();
+	size.width = (int)(size.width * widthScale + 0.5);
+	size.height = (int)(size.height * heightScale + 0.5);
+
+}
+
 
 int main(void){
 	cv::Mat image = cv::imread("image.jpg");
