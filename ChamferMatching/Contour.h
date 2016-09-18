@@ -42,7 +42,7 @@ public:
 			cv::cvtColor(t, t, CV_BGR2GRAY);
 		}
 		cv::findContours(t, contours, hierarchy, type, CV_CHAIN_APPROX_SIMPLE);
-		for(int i=0;i<contours.size();i++)flag.push_back(true);
+		for(size_t i=0;i<contours.size();i++)flag.push_back(true);
 		return (int)contours.size();
 	}
 
@@ -50,12 +50,12 @@ public:
 	void draw(cv::Mat &input, cv::Mat &output, int thick=2, bool randomColor = true, cv::Scalar color = cv::Scalar(0, 0, 255)){
 		cv::Mat drawing = input.clone();
 		cv::RNG rng(12345);
-		for (int i = 0; i < contours.size(); i++){
+		for (size_t i = 0; i < contours.size(); i++){
 			cv::Scalar c;
 			if (randomColor) c = cv::Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
 			else c = color;
 			if (flag[i] == false)continue;
-			drawContours(drawing, contours, i, c, thick, 8, hierarchy, 0);
+			drawContours(drawing, contours, (int)i, c, thick, 8, hierarchy, 0);
 		}
 		output = drawing;
 	}
@@ -69,9 +69,9 @@ public:
 	//input=CV_8UC3 , output=CV_8UC3
 	void drawPoint(cv::Mat &input, cv::Mat &output){
 		cv::Mat drawing = input.clone();
-		for (int i = 0; i < contours.size(); i++){
+		for (size_t i = 0; i < contours.size(); i++){
 			if (flag[i] == false)continue;
-			for (int j = 0; j < contours[i].size(); j++){
+			for (size_t j = 0; j < contours[i].size(); j++){
 				cv::Point pt = contours[i][j];
 				cv::circle(drawing, pt, 1, cv::Scalar(255, 255, 255), 1);
 			}
@@ -85,7 +85,7 @@ public:
 	}
 
 	void re(){
-		for (int i = 0; i < contours.size(); i++){
+		for (size_t i = 0; i < contours.size(); i++){
 			flag[i] = true;
 		}
 	}
@@ -97,7 +97,7 @@ public:
 	//type=CONTOUR_OPENED or CONTOUR_CLOSED or CONTOUR_AREA(4th param), remain=remain/discard, type2(if remain)=CONTOUR_INNER or CONTOUR_OUTER, area=area size
 	void fliter(int type = CONTOUR_OPENED, bool remain = false, int type2 = CONTOUR_INNER, double area = 0.0){
 		int n = (type << 2) + (type2 << 1) + (remain ? 1 : 0);
-		for (int i = 0; i < contours.size(); i++){
+		for (size_t i = 0; i < contours.size(); i++){
 			if (flag[i] == false)continue;
 			switch (n){
 			case 0x0: //00 0 0
@@ -156,6 +156,7 @@ public:
 		contours = c.contours;
 		hierarchy = c.hierarchy;
 		imageSize = c.imageSize;
+		return *this;
 	}
 	
 };

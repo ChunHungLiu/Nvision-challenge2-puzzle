@@ -153,7 +153,7 @@ namespace ending{
 		}
 
 		void rotate(std::vector<cv::Point> &p, std::vector<Orient> &o) const{
-			for (int i = 0; i < p.size(); i++){
+			for (size_t i = 0; i < p.size(); i++){
 				rotate(p[i], o[i]);
 			}
 		}
@@ -193,7 +193,7 @@ namespace ending{
 			rotation_matrices_ = rm.rotation_matrices_;
 		}
 
-		RotationMatrix &get(int idx){
+		RotationMatrix &get(size_t idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
 				_CHAMFER_REPORT(__W__);
@@ -203,7 +203,7 @@ namespace ending{
 			}
 		}
 
-		RotationMatrix &operator[](int idx){
+		RotationMatrix &operator[](size_t idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
 				_CHAMFER_REPORT(__W__);
@@ -273,7 +273,7 @@ namespace ending{
 		
 		Template(const Template &t){
 			scaled_templates.clear();
-			for (int i = 0; i < t.scaled_templates.size(); i++){
+			for (size_t i = 0; i < t.scaled_templates.size(); i++){
 				Template *tt = new Template(*(t.scaled_templates[i]));
 				scaled_templates.push_back(tt);
 			}
@@ -288,7 +288,7 @@ namespace ending{
 		}   //OK
 
 		~Template(){
-			for (int i = 0; i < scaled_templates.size(); i++){
+			for (size_t i = 0; i < scaled_templates.size(); i++){
 				delete scaled_templates[i];
 			}
 		}
@@ -297,14 +297,14 @@ namespace ending{
 			RotationMatrix rm(radien);
 			rm.rotate(coords, orientations);
 			angle += rm.getAngle();
-			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			for (size_t i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
 			create(coords,orientations);
 		}
 
 		void rotate(RotationMatrix &rm){
 			rm.rotate(coords, orientations);
 			angle += rm.getAngle();
-			for (int i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			for (size_t i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
 			create(coords, orientations);
 		}
 
@@ -363,7 +363,7 @@ namespace ending{
 		//output = CV_8UC3
 		void show(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)) const{
 			output = cv::Mat::zeros(imgSize, CV_8UC3);
-			for (int i = 0; i < coords.size(); i++){
+			for (size_t i = 0; i < coords.size(); i++){
 				output.at<cv::Vec3b>(coords[i].y + center.y, coords[i].x + center.x) = color;
 			}
 		}
@@ -371,7 +371,7 @@ namespace ending{
 		//output = CV_8UC1
 		void show(cv::Mat &output, uchar color) const{
 			output = cv::Mat::zeros(imgSize, CV_8UC1);
-			for (int i = 0; i<coords.size(); i++){
+			for (size_t i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + center.y, coords[i].x + center.x) = color;
 			}
 		}
@@ -379,7 +379,7 @@ namespace ending{
 		//output = CV_8UC3
 		void showBoundingBox(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0, 255, 0)) const{
 			output = cv::Mat::zeros(size_, CV_8UC3);
-			for (int i = 0; i<coords.size(); i++){
+			for (size_t i = 0; i<coords.size(); i++){
 				output.at < cv::Vec3b > (coords[i].y + (size_.height+1)/2, coords[i].x + (size_.width+1)/2) = color;
 			}
 		}
@@ -387,7 +387,7 @@ namespace ending{
 		//output = CV_8UC1
 		void showBoundingBox(cv::Mat &output, uchar color) const{
 			output = cv::Mat::zeros(size_, CV_8UC1);
-			for (int i = 0; i<coords.size(); i++){
+			for (size_t i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + (size_.height + 1) / 2, coords[i].x + (size_.width + 1) / 2) = color;
 			}
 		}
@@ -405,7 +405,7 @@ namespace ending{
 		//template image local coordinates
 		std::vector<cv::Point> getPoints(){
 			std::vector<cv::Point> p;
-			for (int i = 0; i < coords.size(); i++){
+			for (size_t i = 0; i < coords.size(); i++){
 				p.push_back(cv::Point(coords[i].x + center.x, coords[i].y + center.y));
 			}
 			return p;
@@ -449,7 +449,7 @@ namespace ending{
 			coords.clear();
 			orientations.clear();
 
-			for (int i = 0; i < scaled_templates.size(); i++){
+			for (size_t i = 0; i < scaled_templates.size(); i++){
 				delete scaled_templates[i];
 			}
 			scaled_templates.clear();
@@ -465,7 +465,7 @@ namespace ending{
 			std::vector<cv::Point>().swap(coords);
 			std::vector<Orient>().swap(orientations);
 
-			for (int i = 0; i < scaled_templates.size(); i++){
+			for (size_t i = 0; i < scaled_templates.size(); i++){
 				delete scaled_templates[i];
 			}
 			std::vector<Template*>().swap(scaled_templates);
@@ -1073,7 +1073,7 @@ namespace ending{
 			//show match template position on the output image (output = CV_8UC3)
 			void showMatch(cv::Mat &output, cv::Vec3b color = cv::Vec3b(0,255,0)){
 				std::vector<cv::Point> p = tp->getCoords();
-				for (int i = 0; i < p.size(); i++){
+				for (size_t i = 0; i < p.size(); i++){
 					output.at<cv::Vec3b>(point_.y + p[i].y, point_.x + p[i].x) = color;
 				}
 			}
@@ -1081,7 +1081,7 @@ namespace ending{
 			//show match template position on the output image (output = CV_8UC1)
 			void showMatch(cv::Mat &output, uchar color = 255){
 				std::vector<cv::Point> p = tp->getPoints();
-				for (int i = 0; i < p.size(); i++){
+				for (size_t i = 0; i < p.size(); i++){
 					output.at<uchar>(point_.y + p[i].y, point_.x + p[i].x) = 255;
 				}
 			}
@@ -1210,7 +1210,7 @@ namespace ending{
 
 		Matcher(const Matcher &m){
 			templates.clear();
-			for (int i = 0; i < m.templates.size(); i++){
+			for (size_t i = 0; i < m.templates.size(); i++){
 				Template *t = new Template(*(m.templates[i]));
 				templates.push_back(t);
 			}
@@ -1221,7 +1221,7 @@ namespace ending{
 		}
 
 		~Matcher(){
-			for (int i = 0; i < templates.size(); i++){
+			for (size_t i = 0; i < templates.size(); i++){
 				delete templates[i];
 			}
 		}
@@ -1244,14 +1244,14 @@ namespace ending{
 		}
 
 		void clear(){
-			for (int i = 0; i < templates.size(); i++){
+			for (size_t i = 0; i < templates.size(); i++){
 				delete templates[i];
 			}
 			templates.clear();
 		}
 
 		void release(){
-			for (int i = 0; i < templates.size(); i++){
+			for (size_t i = 0; i < templates.size(); i++){
 				delete templates[i];
 			}
 			std::vector<Template*>().swap(templates);
@@ -1272,7 +1272,7 @@ namespace ending{
 
 		void setTemplate(std::vector<Template> &templs){
 			templates.clear();
-			for (int i = 0; i < templs.size(); i++){
+			for (size_t i = 0; i < templs.size(); i++){
 				Template *t = new Template(templs[i]);
 				templates.push_back(t);
 			}
@@ -1292,7 +1292,7 @@ namespace ending{
 
 		size_t addTemplate(std::vector<Template> &templs){
 			size_t n = templates.size();
-			for (int i = 0; i < templs.size(); i++){
+			for (size_t i = 0; i < templs.size(); i++){
 				Template *t = new Template(templs[i]);
 				templates.push_back(t);
 			}
@@ -1354,7 +1354,7 @@ namespace ending{
 
 			std::sort(matches.begin(), matches.end(), ending::Matcher::sortingFunction);
 
-			for (int i = 0; i < matches.size(); i++){
+			for (size_t i = 0; i < matches.size(); i++){
 				int j = 0;
 				const cv::Point &pf = matches[i].getPoint();
 				for (j = 0; j < match_count; j++){
@@ -1432,7 +1432,7 @@ namespace ending{
 #endif
 			
 			matchpoints.resize(matchps.size());
-			for (int i = 0; i < matchps.size(); i++){
+			for (size_t i = 0; i < matchps.size(); i++){
 				matchpoints[i] = MatchPoint(matchps[i]);
 			}
 		}
@@ -1449,7 +1449,7 @@ namespace ending{
 
 			int valid_orient = 0;
 
-			for (int i = 0; i < p.size(); i++){
+			for (size_t i = 0; i < p.size(); i++){
 				dist_cost += (double)dist_img.at<float>(loc.y + p[i].y, loc.x + p[i].x);
 				double ori = (double)orient_img.at<float>(loc.y + p[i].y, loc.x + p[i].x);
 				if (o[i] >= -CV_PI && ori >= -CV_PI){
@@ -1485,7 +1485,7 @@ namespace ending{
 			_CHAMFER_REPORT(__I__);
 			std::cout << templates.size() << " templates in this matcher." << std::endl;
 #endif
-			for (int t_num = 0; t_num < templates.size(); t_num++){
+			for (size_t t_num = 0; t_num < templates.size(); t_num++){
 #ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__I__);
 				std::cout << "matching " << t_num + 1 << "th template..." << std::endl;
@@ -1531,7 +1531,7 @@ namespace ending{
 			_CHAMFER_REPORT(__I__);
 			std::cout << templates.size() << " templates in this matcher." << std::endl;
 #endif
-			for (int t_num = 0; t_num < templates.size(); t_num++){
+			for (size_t t_num = 0; t_num < templates.size(); t_num++){
 #ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__I__);
 				std::cout << "matching " << t_num + 1 << "th template..." << std::endl;
@@ -1677,14 +1677,14 @@ namespace ending{
 
 	void ChamferMatcher::setMatchers(std::vector<cv::Mat> &templ){
 		setMatcher(templ[0]);
-		for (int i = 1; i < templ.size(); i++){
+		for (size_t i = 1; i < templ.size(); i++){
 			addMatcher(templ[i]);
 		}
 	}  //OK
 
 	size_t ChamferMatcher::addMatchers(std::vector<Matcher> &m){
 		size_t t = matchers.size();
-		for (int i = 0; i < m.size(); i++){
+		for (size_t i = 0; i < m.size(); i++){
 			matchers.push_back(m[0]);
 		}
 		return t;
@@ -1692,7 +1692,7 @@ namespace ending{
 
 	size_t ChamferMatcher::addMatchers(std::vector<cv::Mat> &templ){
 		size_t t = matchers.size();
-		for (int i = 0; i < templ.size(); i++){
+		for (size_t i = 0; i < templ.size(); i++){
 			addMatcher(templ[i]);
 		}
 		return t;
@@ -1867,9 +1867,8 @@ namespace ending{
 			m = &matchers[0];
 		}
 		m->setTemplate(templ);
-		int num = (int)m->matching(distimg, orientimg);
+		m->matching(distimg, orientimg);
 
-		
 		matchpoints = m->getMatchPoints();
 
 		if (releaseMatcher){
@@ -1893,10 +1892,10 @@ namespace ending{
 			m = &matchers[0];
 		}
 		m->setTemplate(templ);
-		int num = (int)m->matching(distimg, orientimg);
+		m->matching(distimg, orientimg);
 
-		
 		matchpoints = m->getMatchPoints();
+
 
 		if (releaseMatcher){
 			delete m;
@@ -1912,10 +1911,10 @@ namespace ending{
 		}
 
 		Matcher *m = &matchers[0];
-		int num = (int)m->matching(distimg, orientimg);
+		m->matching(distimg, orientimg);
 
-		
 		matchpoints = m->getMatchPoints();
+
 	}
 
 	void ChamferMatcher::matching(cv::Mat &img, cv::Rect boundingBox, Matcher::MatchPoints &matchpoints){
@@ -1940,7 +1939,7 @@ namespace ending{
 #endif
 
 		Matcher *m = &matchers[0];
-		int num = (int)m->matching(distimg, orientimg, lower, upper);
+		m->matching(distimg, orientimg, lower, upper);
 
 #ifdef __CHAMFER_DEBUG_MODE___
 		double endTime = (double)clock();
@@ -1948,9 +1947,9 @@ namespace ending{
 		std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
 
+
 		matchpoints = m->getMatchPoints();
 	}
-
 
 
 
@@ -1972,7 +1971,7 @@ namespace ending{
 		cv::Mat image = img.clone();
 		createMaps(image, distimg, orientimg);
 
-		for (int i = 0; i < matchers.size(); i++){
+		for (size_t i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
 
 #ifdef __CHAMFER_DEBUG_MODE___
@@ -1981,18 +1980,18 @@ namespace ending{
 			double startTime = (double)clock();
 #endif
 
-			int num = (int)m->matching(distimg, orientimg);
+			m->matching(distimg, orientimg);
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
 			_CHAMFER_REPORT(__I__);
 			std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
+			
 			matchpoints.push_back(m->getMatchPoints());
 		}
 		
 	}
-
 
 
 
@@ -2011,10 +2010,11 @@ namespace ending{
 		std::cout << matchers.size() << " matchers." << std::endl;
 #endif
 
+
 		distimg = dist_img;
 		orientimg = orient_img;
 
-		for (int i = 0; i < matchers.size(); i++){
+		for (size_t i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
 
 #ifdef __CHAMFER_DEBUG_MODE___
@@ -2023,14 +2023,14 @@ namespace ending{
 			double startTime = (double)clock();
 #endif
 
-			int num = (int)m->matching(distimg, orientimg);
+			m->matching(distimg, orientimg);
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
 			_CHAMFER_REPORT(__I__);
 			std::cout << "matching done in " << (endTime - startTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
-
+			
 			matchpoints.push_back(m->getMatchPoints());
 		}
 	}
@@ -2048,9 +2048,9 @@ namespace ending{
 		std::cout << matchers.size() << " matchers." << std::endl;
 #endif
 
-		for (int i = 0; i < matchers.size(); i++){
+		for (size_t i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
-			int num = (int)m->matching(distimg, orientimg);
+			m->matching(distimg, orientimg);
 
 			matchpoints.push_back(m->getMatchPoints());
 		}
@@ -2088,7 +2088,7 @@ namespace ending{
 		std::cout << "Done in " << ((double)clock() - createTime) / CLOCKS_PER_SEC << " seconds." << std::endl;
 #endif
 
-		for (int i = 0; i < matchers.size(); i++){
+		for (size_t i = 0; i < matchers.size(); i++){
 			Matcher *m = &matchers[i];
 
 			cv::Point lower;
@@ -2107,7 +2107,7 @@ namespace ending{
 			double startTime = (double)clock();
 #endif
 
-			int num = (int)m->matching(distimg, orientimg, lower, upper);
+			m->matching(distimg, orientimg, lower, upper);
 
 #ifdef __CHAMFER_DEBUG_MODE___
 			double endTime = (double)clock();
@@ -2432,8 +2432,7 @@ namespace ending{
 
 			}
 
-			MatcherConfig(const MatcherConfig &mc) : Matcher::MatcherConfig(mc){
-				_angv = mc._angv;
+			MatcherConfig(const MatcherConfig &mc) : _angv(mc._angv) , Matcher::MatcherConfig(mc){
 			}
 
 			double getAngularVelocity(){
