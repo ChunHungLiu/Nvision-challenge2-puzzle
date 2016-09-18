@@ -39,14 +39,14 @@ ending::Matcher::MatchPoints match(cv::Mat &image, cv::Mat &templ, ending::RCham
 
 	ending::RChamferMatcher cmatcher(mc);
 
-	ending::DEBUG_img = image.clone();  //if no defined __CHAMFER_DEBUG_MODE___  then remove this
+	//ending::DEBUG_img = image.clone();  //if no defined __CHAMFER_DEBUG_MODE___  then remove this
 
 	ending::Matcher::MatchPoints matchpoints;
 
 	cmatcher.addMatcher(templ);
 	cmatcher.matching(iedge,cv::Rect(0,0,image.size().width, image.size().height), matchpoints);
 
-	cv::imshow("debug", ending::DEBUG_img);   //if no defined __CHAMFER_DEBUG_MODE___  then remove this
+	//cv::imshow("debug", ending::DEBUG_img);   //if no defined __CHAMFER_DEBUG_MODE___  then remove this
 
 	return matchpoints;
 }

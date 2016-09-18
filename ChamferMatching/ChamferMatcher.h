@@ -196,9 +196,11 @@ namespace ending{
 		RotationMatrix &get(size_t idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
+#ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__W__);
 				std::cout << "in ending::RotationMatrices::get(int idx) : index out of boundary." << std::endl;
 				std::cout << "\tHandle: will return last one." << std::endl;
+#endif
 				return rotation_matrices_.back();
 			}
 		}
@@ -206,9 +208,11 @@ namespace ending{
 		RotationMatrix &operator[](size_t idx){
 			if (idx < rotation_matrices_.size())return rotation_matrices_[idx];
 			else{
+#ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__W__);
 				std::cout << "in ending::RotationMatrices::get(int idx) : index out of boundary." << std::endl;
 				std::cout << "\tHandle: will return last one." << std::endl;
+#endif
 				return rotation_matrices_.back();
 			}
 		}
@@ -220,14 +224,18 @@ namespace ending{
 		size_t create(double angv){
 			rotation_matrices_.clear();
 			if (angv < 0.0){
+#ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__W__);
 				std::cout << "in ending::RotationMatrices::create(double angv) : angv < 0.0 invalid value" << std::endl;
 				std::cout << "\tHandle: angv will be replaced by fabs(angv)" << std::endl;
+#endif
 				angv = fabs(angv);
 			}
 			else if (angv == 0.0){
+#ifdef __CHAMFER_DEBUG_MODE___
 				_CHAMFER_REPORT(__E__);
 				std::cout << "in ending::RotationMatrices::create(double angv) : angv == 0.0 invalid value" << std::endl;
+#endif
 				return 0;
 			}
 			
@@ -390,6 +398,31 @@ namespace ending{
 			for (size_t i = 0; i<coords.size(); i++){
 				output.at<uchar>(coords[i].y + (size_.height + 1) / 2, coords[i].x + (size_.width + 1) / 2) = color;
 			}
+		}
+
+		double reduce(double per){
+			if (per <= 0.0){
+#ifdef __CHAMFER_DEBUG_MODE___
+				_CHAMFER_REPORT(__W__);
+				std::cout << "Invalid value of per = " << per << "in ending::Template::reduce(double per)." << std::endl;
+#endif
+				return 0;
+			}
+
+			std::vector< cv::Point > p;
+			std::vector<Orient> o;
+			double v = 1 / per;
+			double num = 0;
+			int now = 0;
+			for (size_t i = 0; i < coords.size(); i++){
+				if (i+1 > now)now = (int)(num += v);
+				else if (i+1 < now){
+					p.push_back(coords[i]);
+					o.push_back(orientations[i]);
+				}
+			}
+			double after = 1 - (double)p.size() / (double)coords.size();
+			return after;
 		}
 
 		//get specific template by index
@@ -1905,8 +1938,10 @@ namespace ending{
 	void ChamferMatcher::matching(Matcher::MatchPoints &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
@@ -1920,8 +1955,10 @@ namespace ending{
 	void ChamferMatcher::matching(cv::Mat &img, cv::Rect boundingBox, Matcher::MatchPoints &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
@@ -1958,8 +1995,10 @@ namespace ending{
 	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
@@ -2000,8 +2039,10 @@ namespace ending{
 	void ChamferMatcher::multimatching(cv::Mat& dist_img, cv::Mat &orient_img, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
@@ -2038,8 +2079,10 @@ namespace ending{
 	void ChamferMatcher::multimatching(std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
@@ -2064,8 +2107,10 @@ namespace ending{
 	void ChamferMatcher::multimatching(cv::Mat &img, std::vector<cv::Rect> boundingBox, std::vector<Matcher::MatchPoints> &matchpoints){
 		matchpoints.clear();
 		if (matchers.size() <= 0){
+#ifdef __CHAMFER_DEBUG_MODE___
 			_CHAMFER_REPORT(__W__);
 			std::cout << "No matcher found..." << std::endl;
+#endif
 			return;
 		}
 
