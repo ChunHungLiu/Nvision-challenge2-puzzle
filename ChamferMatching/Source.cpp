@@ -8,7 +8,8 @@
 **                              E-mail: joe1397426985@gmail.com    **
 *********************************************************************/
 
-#define __CHAMFER_DEBUG_MODE___
+//#define __CHAMFER_DEBUG_MODE___
+#define __CHAMFER_INFO_REPORT___
 #define __CHAMFER_LOW_MEMORY___
 
 #include <opencv2/core/core.hpp>
@@ -70,6 +71,17 @@ void getHolePos(ending::INIparser &parser, const std::string &section, std::map<
 	}
 }
 
+cv::Vec2d getCVVec2d(ending::INIparser &parser, const std::string &section, const std::string &name){
+	std::string str = parser.getString(section, name);
+	std::stringstream ss(str.substr(0, str.find(',')));
+	double x, y;
+	ss >> x;
+	std::stringstream ss1(str.substr(str.find(',') + 1, std::string::npos));
+	ss1 >> y;
+	return cv::Vec2d(x, y);
+}
+
+
 void getRChamferMatcherConfig(ending::INIparser &parser, const std::string &section, ending::RChamferMatcher::MatcherConfig &mc){
 	mc.setTemplScale(parser.getDouble(section, "SCALE"));
 	mc.setMaxMatches(parser.getInt(section, "MAXMATCHES"));
@@ -101,7 +113,9 @@ cv::Rect getHoleBoundingBox(cv::Point puz, double widthScale, double heightScale
 	cv::Size size = plate.getBoundingBoxSize();
 	size.width = (int)(size.width * widthScale + 0.5);
 	size.height = (int)(size.height * heightScale + 0.5);
-
+	puz.x -= size.width / 2;
+	puz.y -= size.height / 2;
+	return cv::Rect(puz.x, puz.y, size.width, size.height);
 }
 
 /*
@@ -162,19 +176,14 @@ int main(void){
 }*/
 
 int main(void){
-	cv::Mat templ = cv::imread("edge_x04/plate.png", CV_LOAD_IMAGE_GRAYSCALE);
+	
 
+	std::ifstream fin("config.ini");
 
-	ending::Template t(templ);
-	double after = t.reduce(0.15);
-	cv::Mat d;
-	t.show(d, 255);
-	std::cout << "reduce " << after * 100 << "% of points" << std::endl;
+	ending::INIparser parser(fin);
 
-	cv::imshow("temp", templ);
-	cv::imshow("temp1", d);
+	char c[1] = {};
 
-	cv::waitKey(0);
 	return 0;
 }
 

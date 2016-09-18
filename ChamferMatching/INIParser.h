@@ -117,7 +117,6 @@ namespace ending{
 							e = find_char(s, '\0');
 							rspace(s, e);
 							value = std::string(s);
-
 							push_key(section, name, value);
 						}
 					}
