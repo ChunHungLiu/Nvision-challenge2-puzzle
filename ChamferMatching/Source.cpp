@@ -104,7 +104,7 @@ cv::Rect getHoleBoundingBox(cv::Point puz, double widthScale, double heightScale
 
 }
 
-
+/*
 int main(void){
 	cv::Mat image = cv::imread("image.jpg");
 	std::ifstream fin("config.ini");
@@ -156,6 +156,23 @@ int main(void){
 	std::cout << std::endl;
 
 	cv::imshow("image", image);
+
+	cv::waitKey(0);
+	return 0;
+}*/
+
+int main(void){
+	cv::Mat templ = cv::imread("edge_x04/plate.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+
+	ending::Template t(templ);
+	double after = t.reduce(0.15);
+	cv::Mat d;
+	t.show(d, 255);
+	std::cout << "reduce " << after * 100 << "% of points" << std::endl;
+
+	cv::imshow("temp", templ);
+	cv::imshow("temp1", d);
 
 	cv::waitKey(0);
 	return 0;

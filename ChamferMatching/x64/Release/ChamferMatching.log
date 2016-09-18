@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-﻿已經開始建置於 2016/9/18 下午 01:58:21。
+﻿已經開始建置於 2016/9/18 下午 04:35:16。
      1>節點 2 (Build 目標) 上的專案 "C:\Users\joehs_000\Documents\project\C&C++\OpenCV\DirectionalChamferMatching\Nvision-challenge2-puzzle\ChamferMatching\ChamferMatching.vcxproj"。
-=======
-﻿已經開始建置於 2016/9/18 下午 12:51:04。
-     1>節點 2 (Build 目標) 上的專案 "C:\Users\JoeHsiao\Documents\Visual Studio 2013\Projects\c&cpp\ChamferMatching\ChamferMatching\ChamferMatching.vcxproj"。
->>>>>>> 9e33cf5ff39583613bed4c20aa171fc3720f80c8
      1>ClCompile:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\CL.exe /c /Zi /nologo /W3 /WX- /sdl /O2 /Oi /GL /D WIN32 /D NDEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Release\\" /Fd"x64\Release\vc120.pdb" /Gd /TP /errorReport:prompt Source.cpp
          Source.cpp
@@ -17,8 +12,4 @@
 
 建置成功。
 
-<<<<<<< HEAD
-經過時間 00:00:03.05
-=======
-經過時間 00:00:02.36
->>>>>>> 9e33cf5ff39583613bed4c20aa171fc3720f80c8
+經過時間 00:00:02.78

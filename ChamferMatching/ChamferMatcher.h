@@ -411,17 +411,22 @@ namespace ending{
 
 			std::vector< cv::Point > p;
 			std::vector<Orient> o;
-			double v = 1 / per;
+			double v =1 / (1-per);
 			double num = 0;
 			int now = 0;
 			for (size_t i = 0; i < coords.size(); i++){
-				if (i+1 > now)now = (int)(num += v);
-				else if (i+1 < now){
+				if (i > now){
+					now = (int)(num += v);
+				}
+				else if (i <= now){
 					p.push_back(coords[i]);
 					o.push_back(orientations[i]);
 				}
 			}
+			
 			double after = 1 - (double)p.size() / (double)coords.size();
+			coords = p;
+			orientations = o;
 			return after;
 		}
 
