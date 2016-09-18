@@ -2477,7 +2477,7 @@ namespace ending{
 		Template t(templ);
 		
 
-		for (int i = 0; i < rotation_matrices_.size(); i++){
+		for (size_t i = 0; i < rotation_matrices_.size(); i++){
 			t.rotate(rotation_matrices_[i]);
 			m.addTemplate(t);
 		}
@@ -2491,7 +2491,7 @@ namespace ending{
 		Template t(templ);
 
 		
-		for (int i = 0; i < rotation_matrices_.size(); i++){
+		for (size_t i = 0; i < rotation_matrices_.size(); i++){
 			Template tp(t);
 			tp.rotate(rotation_matrices_[i]);
 			m.addTemplate(tp);
