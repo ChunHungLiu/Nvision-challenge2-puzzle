@@ -8,8 +8,8 @@
 **                              E-mail: joe1397426985@gmail.com    **
 *********************************************************************/
 
-//#define __CHAMFER_DEBUG_MODE___
-#define __CHAMFER_INFO_REPORT___
+#define __CHAMFER_DEBUG_MODE___
+//#define __CHAMFER_INFO_REPORT___
 #define __CHAMFER_LOW_MEMORY___
 
 #include <opencv2/core/core.hpp>

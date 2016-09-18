@@ -1357,7 +1357,7 @@ namespace ending{
 			//std::vector<Match>::iterator target = matches.end();
 			const cv::Point &pf = mp->getPoint();
 
-			for (int i = 0; i < matches.size(); i++){
+			for (size_t i = 0; i < matches.size(); i++){
 				const cv::Point &pr = matches[i].getPoint();
 				if (std::abs(pf.x - pr.x) + std::abs(pf.y - pr.y) < mc.minMatchDistance_){
 					if (mp->getCost() < matches[i].getCost()) matches[i] = (*mp);
@@ -1461,8 +1461,10 @@ namespace ending{
 #ifdef __CHAMFER_DEBUG_MODE___
 			cv::Size s = DEBUG_img.size();
 			if (s.width <= 0 || s.height <= 0){
+#ifdef __CHAMFER_INFO_REPORT___
 				_CHAMFER_REPORT(__W__);
 				std::cout << "in ending::Matcher::filter() : no DEBUG_img" << std::endl;
+#endif
 			}
 			else{
 				if (matchps.size() > 0){
