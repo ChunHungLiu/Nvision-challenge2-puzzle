@@ -1146,6 +1146,7 @@ namespace ending{
 				cv::Size imgsize = cv::Size(0, 0), cv::Size boundingBoxSize = cv::Size(0, 0)){
 				center_ = center;
 				boundingBoxCenter_ = boundingBoxCenter;
+				moment_ = moment;
 				angle_ = angle;
 				scaled_ = scaled;
 				costs_ = costs;
@@ -1162,7 +1163,7 @@ namespace ending{
 				boundingBoxCenter_ = mp.getPoint();
 
 				center_ = cv::Point(imgSize.width / 2 - localcenter.x + boundingBoxCenter_.x, imgSize.height / 2 - localcenter.y + boundingBoxCenter_.y);
-				moment_ = t.getMoment();
+				moment_ = cv::Point(t.getMoment().x + center_.x, t.getMoment().y + center_.y);
 				angle_ = t.getRotatedAngle();
 				scaled_ = t.getScale();
 				costs_ = mp.getCost();
