@@ -156,6 +156,11 @@ namespace ending{
 			}
 		}
 
+		void rotate(cv::Point &p) const{
+			p = (*this) * p;
+		}
+
+
 		void rotate(std::vector<cv::Point> &p, std::vector<Orient> &o) const{
 			for (size_t i = 0; i < p.size(); i++){
 				rotate(p[i], o[i]);
@@ -271,6 +276,7 @@ namespace ending{
 		cv::Size size_;  //bounding box size (scaled)
 		cv::Point center;  //bounding box center
 		cv::Point moment;  //original image moment
+		cv::Point origin;  //original template bounding box center
 		double scale;
 		double angle;
 	public:
@@ -297,6 +303,7 @@ namespace ending{
 			scale = t.scale;
 			moment = t.moment;
 			angle = t.angle;
+			origin = t.origin;
 		}   //OK
 
 		~Template(){
@@ -308,15 +315,19 @@ namespace ending{
 		void rotate(double radien){
 			RotationMatrix rm(radien);
 			rm.rotate(coords, orientations);
+			rm.rotate(origin);
 			angle += rm.getAngle();
 			for (size_t i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			origin = cv::Point(origin.x + center.x, origin.y + center.y);
 			create(coords,orientations);
 		}
 
 		void rotate(RotationMatrix &rm){
 			rm.rotate(coords, orientations);
+			rm.rotate(origin);
 			angle += rm.getAngle();
 			for (size_t i = 0; i < coords.size(); i++)coords[i] = cv::Point(coords[i].x + center.x, coords[i].y + center.y);
+			origin = cv::Point(origin.x + center.x, origin.y + center.y);
 			create(coords, orientations);
 		}
 
@@ -341,6 +352,9 @@ namespace ending{
 
 			tpl.moment.x = (int)(moment.x*scale_factor + 0.5);
 			tpl.moment.y = (int)(moment.y*scale_factor + 0.5);
+
+			tpl.origin.x = (int)(origin.x*scale_factor + 0.5);
+			tpl.origin.y = (int)(origin.y*scale_factor + 0.5);
 
 			tpl.size_.width = (int)(size_.width*scale_factor + 0.5);
 			tpl.size_.height = (int)(size_.height*scale_factor + 0.5);
@@ -476,6 +490,11 @@ namespace ending{
 			return moment;
 		}
 
+		//bounding box center coordinate
+		cv::Point getOrigin(){
+			return origin;
+		}
+
 		//get center coordinate
 		cv::Point &getCenter(){
 			return center;
@@ -500,6 +519,7 @@ namespace ending{
 			size_ = cv::Size(0, 0);
 			center = cv::Point(0, 0);
 			moment = cv::Point(0, 0);
+			origin = cv::Point(0, 0);
 		}
 
 		//release memory
@@ -539,11 +559,16 @@ namespace ending{
 
 			center.x = (_max.x + _min.x) / 2;   //bounding box center
 			center.y = (_max.y + _min.y) / 2;
+			
+			
 
 			for (int i = 0; i<coords_size; ++i) {
 				coords[i].x -= center.x;
 				coords[i].y -= center.y;
 			}
+
+			origin.x -= center.x;
+			origin.y -= center.y;
 
 			if (_min.x < 0){
 				center.x -= _min.x;
@@ -606,6 +631,8 @@ namespace ending{
 				coords[i].x -= center.x;
 				coords[i].y -= center.y;
 			}
+
+			origin = cv::Point(0, 0);
 		}
 
 		static bool findContour(cv::Mat &img, std::vector<cv::Point>&);
@@ -1135,18 +1162,20 @@ namespace ending{
 			cv::Point center_;  //original image center
 			cv::Point boundingBoxCenter_;  //boundingBox center
 			cv::Point moment_;
-			double angle_;  //rotated angle
+			cv::Point origin_;
+			double angle_;  //rotated angle (rad)
 			double scaled_;  //template scales
 			double costs_;  //matching cost
 			cv::Size imgSize;  //original image size(scaled)
 			cv::Size size_;  //bounding box size
 		public:
-			MatchPoint(cv::Point center = cv::Point(0, 0), cv::Point boundingBoxCenter = cv::Point(0, 0), cv::Point moment = cv::Point(0, 0),
+			MatchPoint(cv::Point center = cv::Point(0, 0), cv::Point boundingBoxCenter = cv::Point(0, 0), cv::Point moment = cv::Point(0, 0), cv::Point origin = cv::Point(0,0),
 				double angle = 0, double scaled = 1, double costs = 0,
 				cv::Size imgsize = cv::Size(0, 0), cv::Size boundingBoxSize = cv::Size(0, 0)){
 				center_ = center;
 				boundingBoxCenter_ = boundingBoxCenter;
 				moment_ = moment;
+				origin_ = origin;
 				angle_ = angle;
 				scaled_ = scaled;
 				costs_ = costs;
@@ -1163,7 +1192,8 @@ namespace ending{
 				boundingBoxCenter_ = mp.getPoint();
 
 				center_ = cv::Point(imgSize.width / 2 - localcenter.x + boundingBoxCenter_.x, imgSize.height / 2 - localcenter.y + boundingBoxCenter_.y);
-				moment_ = cv::Point(t.getMoment().x + center_.x, t.getMoment().y + center_.y);
+				moment_ = cv::Point(boundingBoxCenter_.x - t.getCenter().x + t.getMoment().x, boundingBoxCenter_.y - t.getCenter().y + t.getMoment().y);
+				origin_ = cv::Point(t.getOrigin().x + boundingBoxCenter_.x , t.getOrigin().y +boundingBoxCenter_.y);
 				angle_ = t.getRotatedAngle();
 				scaled_ = t.getScale();
 				costs_ = mp.getCost();
@@ -1173,6 +1203,7 @@ namespace ending{
 				center_ = mp.center_;
 				boundingBoxCenter_ = mp.boundingBoxCenter_;
 				moment_ = mp.moment_;
+				origin_ = mp.origin_;
 				angle_ = mp.angle_;
 				scaled_ = mp.scaled_;
 				costs_ = mp.costs_;
@@ -1180,8 +1211,22 @@ namespace ending{
 				size_ = mp.size_;
 			}
 
+			//p: scale 1 template bounding box center coordinate
+			cv::Point getProjPoint(cv::Point p){
+				RotationMatrix rm(angle_ * 180 / CV_PI);
+				Orient o = 0;
+				rm.rotate(p, o);
+				p.x = (int)(p.x * scaled_ + 0.5) + origin_.x;
+				p.y = (int)(p.y * scaled_ + 0.5) + origin_.y;
+				return p;
+			}
+
 			cv::Point getCenter(){
 				return center_;
+			}
+
+			cv::Point getOrigin(){
+				return origin_;
 			}
 			
 			cv::Point getBoundingBoxCenter(){
