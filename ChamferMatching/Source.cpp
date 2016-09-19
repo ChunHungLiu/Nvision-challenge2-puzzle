@@ -178,21 +178,23 @@ int main(void){
 
 
 int main(void){
-	cv::Mat temp = cv::imread("edge_x04/A.png", CV_LOAD_IMAGE_GRAYSCALE);
+	cv::Mat temp = cv::imread("edge_x04/Y.png", CV_LOAD_IMAGE_GRAYSCALE);
 
 	ending::Template t(temp);
-	ending::Template t1(temp);
-	t1.rotate(30);
+	
 
 	std::cout << t.getOrigin().x << ", " << t.getOrigin().y << std::endl;
-	std::cout << t1.getOrigin().x << ", " << t1.getOrigin().y << std::endl;
+	std::cout << t.getCenter().x << ", " << t.getCenter().y << std::endl;
+	for (int i = 0; i < 360; i+=5){
+		ending::Template t1(temp);
+		t1.rotate(30);
+		std::cout << "rotate = " << i << std::endl;
+		std::cout << t1.getOrigin().x << ", " << t1.getOrigin().y << std::endl;
+		std::cout << t1.getCenter().x << ", " << t1.getCenter().y << std::endl;
+	}
+	
+	
 
-	cv::Mat image;
-	t1.showBoundingBox(image, cv::Vec3b(255,0,0));
-
-	cv::Point m = t1.getMoment();
-	std::cout << m.x << " " << m.y << std::endl;
-	cv::imshow("image", image);
 
 	cv::waitKey(0);
 

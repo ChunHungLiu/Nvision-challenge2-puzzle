@@ -383,6 +383,7 @@ namespace ending{
 			t.scale = scale;
 			t.angle = angle;
 			t.moment = moment;
+			t.origin = origin;
 			return t;
 		}
 
